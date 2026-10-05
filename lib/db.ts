@@ -76,4 +76,49 @@ export const db = {
       return { id: 1, ...data, loggedAt: new Date().toISOString() }
     },
   },
+  mechanic: {
+    async findUnique({ where }: { where: { id: number } }) {
+      // In a Prisma implementation, this would query PostgreSQL
+      // For now, return mock mechanic data
+      return {
+        id: 1,
+        serviceCenterId: 1,
+        name: "John Smith",
+        specialization: "General Repair",
+        phone: "+1-555-0123",
+        isActive: true,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+    },
+    async create({ data }: { data: any }) {
+      // Placeholder - create mechanic associated with service center
+      return {
+        id: 1,
+        serviceCenterId: Number(data.serviceCenterId) || 1,
+        name: data.name,
+        specialization: data.specialization || '',
+        phone: data.phone || '',
+        isActive: data.isActive !== false,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }
+    },
+    async update({ where, data }: { where: { id: number }; data: any }) {
+      // Placeholder - update mechanic
+      return {
+        id: where.id,
+        serviceCenterId: data.serviceCenterId ?? 1,
+        name: data.name,
+        specialization: data.specialization ?? '',
+        phone: data.phone ?? '',
+        isActive: data.isActive ?? true,
+        updatedAt: new Date().toISOString(),
+      }
+    },
+    async delete({ where }: { where: { id: number } }) {
+      // Placeholder - delete mechanic
+      return { id: where.id, deleted: true }
+    },
+  },
 }

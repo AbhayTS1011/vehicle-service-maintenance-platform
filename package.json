@@ -1,0 +1,36 @@
+{
+  "name": "vehicle-service-platform",
+  "version": "1.0.0",
+  "description": "Vehicle Service & Maintenance Platform (University DBMS Project)",
+  "main": "index.js",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "db:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.19.0",
+    "bcrypt": "^5.1.1",
+    "jose": "^5.8.0",
+    "next": "14.2.5",
+    "nodemailer": "^6.9.14",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-hook-form": "^7.52.2",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bcrypt": "^5.0.2",
+    "@types/node": "^20.16.0",
+    "@types/nodemailer": "^6.4.15",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.41",
+    "tailwindcss": "^3.4.10",
+    "typescript": "^5.5.4",
+    "prisma": "^5.19.0"
+  }
+}

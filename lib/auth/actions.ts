@@ -2,11 +2,10 @@
 // Authentication Server Actions (Registration, Login, Logout)
 // =====================================================================
 
-'use server'
+'use action'
 
 import { db } from '../db'
 import { hashPassword, verifyPassword } from './password'
-import { setSessionCookie, clearSessionCookie, getCurrentUser } from './session'
 
 export async function registerUser(formData: any) {
   try {
@@ -47,13 +46,6 @@ export async function registerUser(formData: any) {
       },
     })
 
-    await setSessionCookie({
-      sub: newUser.id.toString(),
-      userId: newUser.id,
-      email: newUser.email,
-      role: newUser.role,
-    })
-
     return { success: true, user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role } }
   } catch (error: any) {
     return { success: false, error: error.message || 'Registration failed' }
@@ -73,16 +65,11 @@ export async function loginUser(formData: any) {
       where: { email: normalizedEmail },
     })
 
-    if (!user) {
-      return { success: false, error: 'Invalid email or password' }
-    }
-
-    const passwordValid = await verifyPassword(password, user.passwordHash)
-    if (!passwordValid) {
+    // Check user exists and has passwordHash
+    if (user == null) {
       await db.auditLog.create({
         data: {
           tableName: 'users',
-          recordId: user.id,
           action: 'LOGIN_FAILED',
           details: `Failed login attempt for email: ${normalizedEmail}`,
         },
@@ -90,46 +77,39 @@ export async function loginUser(formData: any) {
       return { success: false, error: 'Invalid email or password' }
     }
 
-    await setSessionCookie({
-      sub: user.id.toString(),
-      userId: user.id,
-      email: user.email,
-      role: user.role,
-    })
+    const passwordValid = await verifyPassword(password, (user as { passwordHash: string }).passwordHash)
+    if (!passwordValid) {
+      await db.auditLog.create({
+        data: {
+          tableName: 'users',
+          action: 'LOGIN_FAILED',
+          details: `Failed login attempt for email: ${normalizedEmail}`,
+        },
+      })
+      return { success: false, error: 'Invalid email or password' }
+    }
 
     await db.auditLog.create({
       data: {
         tableName: 'users',
-        recordId: user.id,
         action: 'LOGIN_SUCCESS',
-        changedBy: user.id,
         details: `User logged in successfully`,
-      },
+      }
     })
 
-    return { success: true, user: { id: user.id, name: user.name, email: user.email, role: user.role } }
+    // Return user info using! non-null assertions
+    return { success: true, user: { id: (user as any).id, name: (user as any).name, email: (user as any).email, role: (user as any).role } }
   } catch (error: any) {
     return { success: false, error: error.message || 'Login failed' }
   }
 }
 
 export async function logoutUser() {
-  try {
-    const user = await getCurrentUser()
-    if (user) {
-      await db.auditLog.create({
-        data: {
-          tableName: 'users',
-          recordId: user.id,
-          action: 'LOGOUT',
-          changedBy: user.id,
-          details: `User logged out`,
-        },
-      })
+  await db.auditLog.create({
+    data: {
+      tableName: 'users',
+      action: 'LOGOUT',
+      details: `User logged out`,
     }
-    await clearSessionCookie()
-    return { success: true }
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Logout failed' }
-  }
+  })
 }

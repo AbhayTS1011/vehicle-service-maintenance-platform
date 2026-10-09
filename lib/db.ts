@@ -102,6 +102,20 @@ export const db = {
     },
   },
   booking: {
+    async cancelPendingForCustomer(bookingId: number, customerId: number) {
+      const result = await prisma.booking.updateMany({
+        where: { id: bookingId, customerId, status: 'PENDING' },
+        data: { status: 'CANCELLED' },
+      })
+      return result.count
+    },
+    async findStatusForCustomer(bookingId: number, customerId: number) {
+      const booking = await prisma.booking.findFirst({
+        where: { id: bookingId, customerId },
+        select: { status: true },
+      })
+      return booking?.status ?? null
+    },
     async findForCustomerById(bookingId: number, customerId: number) {
       return prisma.booking.findFirst({
         where: { id: bookingId, customerId },

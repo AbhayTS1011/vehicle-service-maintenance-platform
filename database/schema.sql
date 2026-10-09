@@ -27,7 +27,7 @@ DROP TYPE IF EXISTS invoice_status CASCADE;
 -- ENUMS
 -- =====================================================================
 CREATE TYPE user_role AS ENUM ('CUSTOMER', 'SERVICE_PROVIDER', 'FLEET_MANAGER', 'ADMIN');
-CREATE TYPE booking_status AS ENUM ('PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'INVOICED');
+CREATE TYPE booking_status AS ENUM ('PENDING', 'CONFIRMED', 'IN_PROGRESS', 'COMPLETED', 'INVOICED', 'CANCELLED');
 CREATE TYPE invoice_status AS ENUM ('UNPAID', 'PAID', 'CANCELLED');
 
 -- =====================================================================

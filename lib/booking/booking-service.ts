@@ -40,6 +40,19 @@ export type CustomerBookingDetailsResult =
   | { success: true; booking: CustomerBookingDetails }
   | { success: false; reason: 'not_found' | 'error'; error: string }
 
+export type BookingCancellationResult =
+  | { success: true }
+  | {
+      success: false
+      reason: 'unauthenticated' | 'forbidden' | 'invalid_input' | 'not_found' | 'invalid_state' | 'error'
+      error: string
+    }
+
+export type BookingCancellationRepository = {
+  cancelPendingForCustomer: (bookingId: number, customerId: number) => Promise<number>
+  findStatusForCustomer: (bookingId: number, customerId: number) => Promise<string | null>
+}
+
 export async function listCustomerBookings(
   actor: BookingActor,
   repository: { findForCustomer: (customerId: number) => Promise<CustomerBookingSummary[]> },
@@ -80,6 +93,48 @@ export async function getCustomerBookingDetails(
     return { success: true, booking }
   } catch {
     return { success: false, reason: 'error', error: 'Booking details could not be loaded. Please try again.' }
+  }
+}
+
+export async function cancelCustomerBooking(
+  actor: BookingActor,
+  input: unknown,
+  repository: BookingCancellationRepository,
+): Promise<BookingCancellationResult> {
+  if (!actor || !Number.isSafeInteger(actor.id) || actor.id <= 0) {
+    return { success: false, reason: 'unauthenticated', error: 'Please sign in to cancel a booking.' }
+  }
+  if (actor.role !== UserRole.CUSTOMER && actor.role !== UserRole.FLEET_MANAGER) {
+    return { success: false, reason: 'forbidden', error: 'You do not have permission to cancel customer bookings.' }
+  }
+
+  const bookingId = typeof input === 'number'
+    ? input
+    : typeof input === 'string' && /^\d+$/.test(input)
+      ? Number(input)
+      : Number.NaN
+  if (!Number.isSafeInteger(bookingId) || bookingId <= 0) {
+    return { success: false, reason: 'invalid_input', error: 'Choose a valid booking to cancel.' }
+  }
+
+  try {
+    const updated = await repository.cancelPendingForCustomer(bookingId, actor.id)
+    if (updated === 1) return { success: true }
+    if (updated !== 0) {
+      return { success: false, reason: 'error', error: 'The booking could not be cancelled. Please try again.' }
+    }
+
+    const currentStatus = await repository.findStatusForCustomer(bookingId, actor.id)
+    if (currentStatus === null) {
+      return { success: false, reason: 'not_found', error: 'Booking not found.' }
+    }
+    return {
+      success: false,
+      reason: 'invalid_state',
+      error: 'Only pending bookings can be cancelled.',
+    }
+  } catch {
+    return { success: false, reason: 'error', error: 'The booking could not be cancelled. Please try again.' }
   }
 }
 

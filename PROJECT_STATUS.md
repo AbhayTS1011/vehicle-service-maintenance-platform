@@ -25,10 +25,9 @@ The platform manages the complete vehicle-service lifecycle for a single service
 
 ```text
 Branch: main
-Latest completed feature checkpoint: 01f2009
-Commit message: feat: implement customer booking details
-Latest verified maintenance checkpoint: `chore: remediate dependency and runtime issues` (separate from feature work).
-Current completed feature phase: Phase 4C.3 — Customer Booking Details.
+Latest completed feature checkpoint: Phase 4C.4 — Customer Booking Cancellation (see latest feature commit on `main`).
+Previous feature checkpoint: 01f2009 (`feat: implement customer booking details`).
+Latest maintenance checkpoint: 5b5c633 (`chore: remediate dependency and runtime issues`).
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -49,7 +48,7 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Phase 4C.1 — Booking Creation | COMPLETE (database connection not verified in this environment) |
 | Phase 4C.2 — Booking Listing | COMPLETE (PostgreSQL connectivity not verified) |
 | Phase 4C.3 — Customer Booking Details | COMPLETE (build verified; PostgreSQL connectivity not verified) |
-| Phase 4C.4 — Customer Booking Cancellation | NOT STARTED |
+| Phase 4C.4 — Customer Booking Cancellation | COMPLETE (migration added; live database not verified) |
 | Remaining Phase 4C — Booking Management | NOT STARTED |
 | Phase 5 — Service Records & Parts | NOT STARTED |
 | Phase 6 — Invoicing | NOT STARTED |
@@ -458,7 +457,7 @@ if invalid → redirect to /login
   ├── /vehicles — vehicle management
   └── /bookings
       ├── /new — create a PENDING service booking (Phase 4C.1)
-      └── /[id] — view an owned booking's details (Phase 4C.3)
+      └── /[id] — view an owned booking's details and cancel while PENDING (Phase 4C.4)
 ```
 
 **Protected routes**: All `/dashboard/*` routes require authentication and valid role.
@@ -485,6 +484,7 @@ if invalid → redirect to /login
  │   │   ├── layout.tsx           # Dashboard layout
  │   │   ├── customer/           # Customer dashboard
  │   │   │   └── vehicles/       # Vehicle list / [id]
+ │   │   │   └── bookings/       # Booking creation, list, details, cancellation
  │   │   ├── provider/           # Provider dashboard
  │   │   └── admin/              # Admin dashboard
  │   │       ├── service-center/ # Service center page
@@ -493,6 +493,7 @@ if invalid → redirect to /login
  │   └── layout.tsx               # Root layout
  ├── database/                     # SQL-First Database definitions
  │   ├── schema.sql               # Core table definitions & enums (21KB)
+ │   ├── migrations/              # Forward-only migrations for existing databases
  │   ├── functions.sql            # Stored SQL functions
  │   ├── triggers.sql             # Database triggers & automation
  │   ├── views.sql                # Operational and analytical views
@@ -503,6 +504,7 @@ if invalid → redirect to /login
  │   └── schema.prisma             # Type generation schema
  ├── lib/                          # Utility libraries & database client
  │   ├── db.ts                    # Resilient DB persistence layer (in-memory + mock)
+ │   ├── booking/                 # Booking services and focused Node tests
  │   ├── auth/                    # Authentication logic
  │   │   ├── actions.ts           # Login/Logout Server Actions
  │   │   ├── jwt.ts               # JWT sign/verify
@@ -530,7 +532,7 @@ if invalid → redirect to /login
 ```
 
 - **Mechanic availability** — NOT STARTED — No availability tracking or scheduling system
-- **Booking lifecycle management** — NOT STARTED — Booking creation is implemented; listing, editing, cancellation, staff management, and state transitions are not implemented
+- **Remaining booking lifecycle management** — NOT STARTED — Creation, listing, details, and customer cancellation are implemented; editing, rescheduling, confirmation/rejection, staff management, and other transitions are not implemented
 - **Appointment scheduling** — NOT STARTED — No calendar/availability slot system
 - **Mechanic assignment** — NOT STARTED — No mechanism to assign mechanics to bookings
 - **Service records** — NOT STARTED — No service execution tracking beyond basic bookings
@@ -561,26 +563,31 @@ PLANNED        — In roadmap but not started
 ## CURRENT STOP POINT
 ```
 
-Development is stopped after **Phase 4C.3 — Customer Booking Details**.
+Development is stopped after **Phase 4C.4 — Customer Booking Cancellation**.
 
 - Customers can submit a new booking request for their own vehicle and an existing service type. Requests are created with `PENDING` status.
 - Booking creation uses Prisma against PostgreSQL. The legacy user, vehicle, service-center, and mechanic methods in `lib/db.ts` remain mock placeholders; booking creation itself is not in-memory.
 - A live PostgreSQL connection was not available during verification (`DATABASE_URL` and `.env` were absent), so database runtime connectivity was not verified.
 - The customer booking list is server rendered and queries Prisma/PostgreSQL with a `customerId` filter derived from the signed session. It shows booking ID, vehicle, service, requested date, status, and creation date.
 - The customer booking details page queries by both booking ID and customer ID from the signed session. It shows schema-backed booking, vehicle, service type, service center, dates, status, and optional notes. A mismatched customer/booking pair returns not found.
-- Booking listing has empty, loading, and safe error states. No booking lifecycle actions are implemented.
-- The remaining booking lifecycle features are NOT STARTED.
+- Booking listing has empty, loading, and safe error states.
+- Customers can cancel only their own `PENDING` booking. The details page asks for confirmation and hides the control after status changes. Confirmed, in-progress, completed, invoiced, and already cancelled bookings cannot be cancelled through this operation.
+- Cancellation checks session and customer/fleet-manager role server-side. A single conditional update matches booking ID, session customer ID, and `PENDING` status, then writes `CANCELLED`. Missing or non-pending bookings receive safe results; the client cannot supply customer ID or target status.
+- `CANCELLED` was added to `database/schema.sql` and `prisma/schema.prisma`. Existing databases require applying `database/migrations/20261009_add_cancelled_booking_status.sql`; it was not applied because no real `DATABASE_URL` is configured.
+- Other booking lifecycle and provider-management features remain NOT STARTED.
 - A future session must NOT automatically begin Phase 4C or any other feature.
 - Wait for explicit instructions from the user before implementing the next task.
 
-Latest completed feature checkpoint: **Commit `01f2009`** — `feat: implement customer booking details`, branch `main`. Maintenance fixes are recorded in a separate maintenance commit.
+Latest maintenance commit: **`5b5c633`** — `chore: remediate dependency and runtime issues`. Latest feature commit: **`feat: implement customer booking cancellation`** (current handoff commit on `main`).
 
-Verification for Phase 4C.3:
+Verification history:
 - Focused booking tests: 18 passed with Node's built-in test runner, covering creation, listing, ownership, not found, and safe database errors.
 - TypeScript: `npx tsc --noEmit` passed.
 - Lint: `npm run lint` passed with no warnings or errors.
 - Production build: `npm run build` passed and generated all 13 static pages. The prior Edge Runtime warning disappeared after replacing Node `crypto` with `jose` in the middleware JWT module. The build required elevated filesystem access to write generated `.next` output.
-- Maintenance security tests: 5 JWT tests passed for valid and legacy-format HS256 tokens, modified signatures, expiration, and malformed tokens. Combined booking and JWT tests: 23 passed.
+- Stage 1 maintenance verification: 5 JWT tests passed for valid and legacy-format HS256 tokens, modified signatures, expiration, and malformed tokens. The combined maintenance booking/JWT tests passed 23/23.
+- Phase 4C.4 verification: `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 35/35 tests, including all cancellation eligibility, ownership, input, error, and simulated concurrency cases. These are unit tests with an in-memory fake repository, not PostgreSQL integration tests.
+- Phase 4C.4 TypeScript: `npx tsc --noEmit` passed. Lint: `npm run lint` passed. Production build: `npm run build` passed.
 - Dependency audit: findings were reduced from 19 (2 moderate, 15 high, 2 critical) to 1 critical package entry. Patched compatible transitive dependencies, upgraded Next.js to 14.2.35, bcrypt to 6.0.0, Nodemailer to 10.0.16, and Tailwind CSS to 4.3.3; added targeted PostCSS and glob overrides. The remaining entry is Next.js (the audit JSON links 23 advisories, including critical GHSA-p293-qw3h-jr36 and GHSA-2xp9-vwfh-vxw4). npm recommends Next 16.4.0. That major migration has breaking async `cookies()`/`params`, `middleware`→`proxy`, and ESLint 9 flat-config requirements; React 18 is within its declared peer range. The attempted upgrade was rejected by the automatic approval reviewer as a broad breaking framework migration not authorized as an exact action. It was not retried or bypassed; obtain approval before that migration.
 - PostgreSQL: connection not attempted because neither the process environment nor a local `.env` contains `DATABASE_URL`. Configure `DATABASE_URL` with the actual PostgreSQL username, password, host, port, database name, and `?schema=public`; no credentials were created or printed.
 
@@ -598,6 +605,9 @@ Phase 4C.2 — Booking Listing — COMPLETE (database connection not verified)
   • Customer-scoped server-rendered booking list with loading, empty, and error states
 Phase 4C.3 — Customer Booking Details — COMPLETE (build verified; database connection not verified)
   • Customer-scoped server-rendered details page; booking ID and authenticated customer ID are queried together
+Phase 4C.4 — Customer Booking Cancellation — COMPLETE (migration added; database connection not verified)
+  • Customer/fleet manager may cancel only their own PENDING booking; atomic conditional update writes CANCELLED
+  • Forward migration: database/migrations/20261009_add_cancelled_booking_status.sql (not applied to a live database)
 Phase 4C remaining — Lifecycle, availability, and provider appointment management — NOT STARTED
 
 Phase 5 — Service Records & Parts — NOT STARTED
@@ -639,7 +649,7 @@ Phase 11 — Polish & Deployment — NOT STARTED
 The original plan has 39 tasks across 12 phases; remaining work is not re-estimated here.
 ```
 
-> **Note**: Phase 4C.1 implements booking creation, Phase 4C.2 implements customer booking listing, and Phase 4C.3 implements customer booking details. All other booking functionality remains NOT STARTED.
+> **Note**: Phases 4C.1–4C.4 implement customer booking creation, listing, details, and cancellation. Other booking lifecycle and provider-management functionality remains NOT STARTED.
 
 ---
 
@@ -704,7 +714,7 @@ All schemas, functions, triggers, views, and indexes are defined in `database/*.
 Explicit PostgreSQL transactions with row-level locking (`SELECT ... FOR UPDATE`) for high-contention operations (mechanic assignment, inventory deduction). Prevents race conditions at the database level.
 
 ### Workflow State Machine
-Strict 5-state booking lifecycle: `PENDING → CONFIRMED → IN_PROGRESS → COMPLETED → INVOICED`. Invalid state transitions blocked by database check constraints and backend business logic.
+Booking workflow: `PENDING → CONFIRMED → IN_PROGRESS → COMPLETED → INVOICED`, with `PENDING → CANCELLED` as a separate terminal customer outcome. The customer cancellation operation enforces ownership and the `PENDING` source state with an atomic conditional update; other lifecycle actions remain unimplemented.
 
 ### Authentication
 Stateless authentication using JWT (signed via `jose`), password hashing with `bcrypt`, and secure HTTP-only cookies. Never trust client-supplied roles; enforce strict server-side authorization checks.
@@ -727,7 +737,7 @@ ESLint uses the Next.js Core Web Vitals rules. TypeScript, lint, production buil
 
 The latest `npm audit` reports 1 critical Next.js package entry in version 14.2.35 (23 linked advisories, including Windows-hosted RCE GHSA-p293-qw3h-jr36 and AVIF image-optimization RCE GHSA-2xp9-vwfh-vxw4). npm recommends Next.js 16.4.0. This major migration changes synchronous `cookies()`/`params`, renames middleware to proxy, and requires ESLint 9 flat config. The automatic approval reviewer rejected the requested upgrade attempt as a broad breaking migration not authorized as an exact action; it was not retried. No force audit fix was used.
 
-PostgreSQL runtime connectivity remains unverified. Provide an actual `DATABASE_URL` in the ignored local `.env` file or process environment, formatted as a PostgreSQL connection string with real credentials, before validating Prisma against a database.
+PostgreSQL runtime connectivity remains unverified. Provide `DATABASE_URL=postgresql://<username>:<password>@<host>:<port>/<database>?schema=public` in the ignored local `.env` file or process environment with real connection details before validating Prisma or applying the migration.
 
 ### Partially Implemented CRUD
 - Service center edit: UI present, data mocked in `lib/db.ts`
@@ -795,7 +805,7 @@ PostgreSQL runtime connectivity remains unverified. Provide an actual `DATABASE_
 After creating this file:
 
 1. ✅ Read the entire file for contradictions.
-2. ✅ Compare phase status against the actual repository; current phases 4C.1–4C.3 are recorded above.
+2. ✅ Compare phase status against the actual repository; current phases 4C.1–4C.4 are recorded above.
 3. ✅ Verify the latest Git commit matches expectations.
 4. ✅ Verify no secrets are included (`.env`, credentials, API keys not committed).
 5. ✅ Verify no unimplemented booking lifecycle or later-phase functionality is marked complete.

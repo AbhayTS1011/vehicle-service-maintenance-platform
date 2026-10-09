@@ -5,6 +5,7 @@ import { UserRole } from '@prisma/client'
 import { verifyToken } from '@/lib/auth/jwt'
 import { db } from '@/lib/db'
 import { getCustomerBookingDetails } from '@/lib/booking/booking-service'
+import { CancelBookingForm } from '../CancelBookingForm'
 
 const dateTime = new Intl.DateTimeFormat('en-IN', {
   dateStyle: 'medium',
@@ -67,6 +68,7 @@ export default async function CustomerBookingDetailsPage({
                 {result.booking.serviceCenter.operatingHours && <><br />{result.booking.serviceCenter.operatingHours}</>}
               </dd>
             </dl>
+            {result.booking.status === 'PENDING' && <CancelBookingForm bookingId={result.booking.id} />}
           </>
         )}
       </section>

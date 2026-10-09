@@ -5,7 +5,24 @@ import { UserRole } from '@prisma/client'
 import { db } from '@/lib/db'
 import { verifyVehicleOwnership } from '@/lib/auth/permissions'
 import { verifyToken } from '@/lib/auth/jwt'
-import { createCustomerBooking, type BookingResult } from '@/lib/booking/booking-service'
+import {
+  cancelCustomerBooking,
+  createCustomerBooking,
+  type BookingCancellationResult,
+  type BookingResult,
+} from '@/lib/booking/booking-service'
+
+export async function cancelBooking(formData: FormData): Promise<BookingCancellationResult> {
+  const token = cookies().get('apex_session')?.value
+  const payload = token ? await verifyToken(token) : null
+  const role = payload?.role as UserRole | undefined
+  const actor = payload?.userId && role ? { id: payload.userId, role } : null
+
+  return cancelCustomerBooking(actor, formData.get('bookingId'), {
+    cancelPendingForCustomer: (bookingId, customerId) => db.booking.cancelPendingForCustomer(bookingId, customerId),
+    findStatusForCustomer: (bookingId, customerId) => db.booking.findStatusForCustomer(bookingId, customerId),
+  })
+}
 
 export async function createBooking(_previousState: BookingResult | null, formData: FormData): Promise<BookingResult> {
   const token = cookies().get('apex_session')?.value

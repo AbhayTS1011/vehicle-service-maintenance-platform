@@ -17,8 +17,8 @@
 - **Rationale**: Prevents race conditions (e.g., double-booking a mechanic or negative inventory stock) at the database level.
 
 ## 5. Workflow State Machine
-- **Decision**: Enforce a strict 5-state booking lifecycle: `PENDING → CONFIRMED → IN_PROGRESS → COMPLETED → INVOICED`.
-- **Rationale**: Invalid state transitions are blocked by business logic and database check constraints/triggers.
+- **Decision**: Preserve the service lifecycle `PENDING → CONFIRMED → IN_PROGRESS → COMPLETED → INVOICED` and allow a separate terminal customer cancellation transition `PENDING → CANCELLED`.
+- **Rationale**: Customer cancellation is restricted to the authenticated owner and enforced by a single conditional update requiring the current status to be `PENDING`. No other lifecycle transitions are implemented by this feature.
 
 ## 6. Email Notifications
 - **Decision**: Use Nodemailer with SMTP for asynchronous email notifications triggered upon booking status updates and invoice generation.

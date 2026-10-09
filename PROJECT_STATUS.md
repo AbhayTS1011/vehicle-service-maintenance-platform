@@ -25,8 +25,9 @@ The platform manages the complete vehicle-service lifecycle for a single service
 
 ```text
 Branch: main
-Latest verified checkpoint before Phase 4C.3: 3b23bcc
-Commit message: feat: implement customer booking listing
+Latest completed feature checkpoint: 01f2009
+Commit message: feat: implement customer booking details
+Maintenance verification changes: see the latest `chore: stabilize lint build and project verification` commit in Git history.
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -568,14 +569,14 @@ Development is stopped after **Phase 4C.3 — Customer Booking Details**.
 - A future session must NOT automatically begin Phase 4C or any other feature.
 - Wait for explicit instructions from the user before implementing the next task.
 
-Latest verified checkpoint before this Phase 4C.3 change: **Commit `3b23bcc`** — `feat: implement customer booking listing`, branch `main`.
+Latest completed feature checkpoint: **Commit `01f2009`** — `feat: implement customer booking details`, branch `main`. Verification/configuration maintenance is tracked separately in the latest `chore: stabilize lint build and project verification` commit.
 
 Verification for Phase 4C.3:
 - Focused booking tests: 18 passed with Node's built-in test runner, covering creation, listing, ownership, not found, and safe database errors.
 - TypeScript: `npx tsc --noEmit` passed.
-- Lint: `npm run lint` is blocked by Next.js's first-time interactive ESLint configuration prompt; no ESLint configuration exists.
-- Production build: failed with `EPERM` creating `.next/types/app`. A direct write probe to that generated path succeeded, so general workspace write permission is available; the failure is specific to the Next.js build process here.
-- Live PostgreSQL: not verified because `DATABASE_URL` and `.env` were absent. Listing tests use repository mocks and do not establish live DB connectivity.
+- Lint setup: `.eslintrc.json` uses `next/core-web-vitals`; `eslint` 8.57.1 and `eslint-config-next` 14.2.5 are installed as development dependencies. `npm run lint` now runs non-interactively, but reports one existing `react/no-unescaped-entities` error at `app/login/page.tsx:82`; booking-related files lint cleanly.
+- Production build: after removing only the ignored, generated `.next` directory with no Node/Next process running, Next.js no longer reports the earlier `EPERM` directory-creation error and compiles successfully. The build then fails on the same existing lint error at `app/login/page.tsx:82`. A direct write probe to the `.next` path also succeeded; stale generated output was the likely cause of the earlier `EPERM` errors.
+- PostgreSQL: connection not attempted because `DATABASE_URL` and `.env` are absent. `npx prisma validate` was attempted and stopped because Prisma requires `DATABASE_URL`; it did not connect to a database.
 
 ---
 
@@ -715,6 +716,11 @@ Most legacy methods in `lib/db.ts` remain placeholders that return mock data. Ph
 ### Incomplete Test Coverage
 The repository has no configured Jest/React Testing Library/Playwright packages or scripts. Phases 4C.1–4C.3 include focused tests using Node's built-in test runner; broad application test coverage remains incomplete.
 
+### Verification Setup
+ESLint is configured with the Next.js 14.2.5 Core Web Vitals rules. Full-project lint and production build currently stop on an existing unescaped apostrophe in `app/login/page.tsx:82`. Booking-related files lint successfully. The build compiles before stopping at this lint error.
+
+PostgreSQL runtime connectivity remains unverified. Configure a real `DATABASE_URL` in the local ignored `.env` file or process environment before running Prisma validation or database-backed features.
+
 ### Partially Implemented CRUD
 - Service center edit: UI present, data mocked in `lib/db.ts`
 - Mechanic add/edit/delete: Listing and add link present, full form CRUD not implemented
@@ -758,17 +764,16 @@ The repository has no configured Jest/React Testing Library/Playwright packages 
 4. Inspect the actual repository before coding — do not assume this document is up-to-date with the latest code.
 5. Confirm the requested task with the user before implementing.
 6. Implement ONLY that task — do not automatically begin the next phase.
-7. Run focused tests and build verification:
+7. Run focused tests and verification:
    ```bash
-   npm run build
-   # if lint/typecheck available:
+   npx tsc --noEmit
    npm run lint
+   npm run build
+   node --test lib/booking/booking-service.test.cjs
    ```
-8. Commit and push only the changes for the requested task:
+8. Review `git status` and `git diff`, then stage only files changed for the explicitly requested task:
    ```bash
-   git add .
-   git commit -m "feat: [descriptive message]"
-   git push origin main
+   git add <reviewed-files>
    ```
 9. Update `PROJECT_STATUS.md` to reflect the completed task and phase status.
 10. **STOP and wait for further instructions.** Do not automatically continue to the next phase.
@@ -787,8 +792,8 @@ After creating this file:
 4. ✅ Verify no secrets are included (`.env`, credentials, API keys not committed).
 5. ✅ Verify no unimplemented booking lifecycle or later-phase functionality is marked complete.
 6. ✅ Ensure the document is concise enough to be useful as a handoff document.
-7. ✅ Do NOT modify application code.
-8. ✅ Do NOT implement any feature.
+7. ✅ Follow the explicit scope of the user's current task.
+8. ✅ Do NOT implement future features without user instructions.
 
 ---
 

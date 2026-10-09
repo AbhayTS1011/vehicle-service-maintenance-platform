@@ -27,7 +27,9 @@ The platform manages the complete vehicle-service lifecycle for a single service
 Branch: main
 Latest completed feature checkpoint: Phase 4C.4 — Customer Booking Cancellation (see latest feature commit on `main`).
 Previous feature checkpoint: 01f2009 (`feat: implement customer booking details`).
-Latest maintenance checkpoint: 5b5c633 (`chore: remediate dependency and runtime issues`).
+Latest maintenance checkpoint before the security migration: 5b5c633 (`chore: remediate dependency and runtime issues`).
+Security migration base: e783437 (`feat: implement customer booking cancellation`).
+Current migration checkpoint: `chore: migrate to patched Next.js 16`.
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -81,7 +83,7 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 - Nodemailer SMTP settings
 
 **Base Next.js application**:
-- Next.js 14+ with App Router
+- Next.js 16 with App Router
 - TypeScript strict mode
 - Tailwind CSS / custom styling
 - `app/layout.tsx`, `app/globals.css`
@@ -257,9 +259,9 @@ CREATE TABLE mechanics (
 
 | Layer | Technology | Details |
 |---|---|---|
-| **Frontend** | Next.js 14+ (App Router), React 18+, TypeScript | App Router pages, Server Components, Client Components |
+| **Frontend** | Next.js 16.4.0 (App Router), React 19.3.0, TypeScript | App Router pages, Server Components, Client Components |
 | **Styling** | Custom CSS with Tailwind-inspired patterns | Inline styles in JSX, consistent color palette |
-| **Backend** | Next.js 14+ App Router, Server Actions | Route handlers, form submissions |
+| **Backend** | Next.js 16 App Router, Server Actions, Node.js Proxy | Route handlers, form submissions, dashboard route guard |
 | **Database** | PostgreSQL 14+ (SQL-First) | All schemas in `database/*.sql`, Prisma for type generation |
 | **ORM** | Prisma (type generation only) | `prisma db pull` generates types from SQL; `db.ts` is custom resilient layer |
 | **Authentication** | bcrypt, jose (JWT), secure HTTP-only cookies | Password hashing, JWT signing, cookie-based sessions |
@@ -269,8 +271,10 @@ CREATE TABLE mechanics (
 | **Deployment** | Vercel (frontend), PostgreSQL hosting | Not yet configured |
 
 **Exact versions**:
-- Next.js: 14.2.35
-- React: 18.3.1
+- Next.js: 16.4.0
+- React / React DOM: 19.3.0
+- ESLint: 9.39.5 (latest peer-compatible major supported by the bundled Next.js ESLint plugins)
+- eslint-config-next: 16.4.0
 - TypeScript: 5.9.3
 - Prisma: ^5.19.0
 - bcrypt: 6.0.0
@@ -588,7 +592,7 @@ Verification history:
 - Stage 1 maintenance verification: 5 JWT tests passed for valid and legacy-format HS256 tokens, modified signatures, expiration, and malformed tokens. The combined maintenance booking/JWT tests passed 23/23.
 - Phase 4C.4 verification: `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 35/35 tests, including all cancellation eligibility, ownership, input, error, and simulated concurrency cases. These are unit tests with an in-memory fake repository, not PostgreSQL integration tests.
 - Phase 4C.4 TypeScript: `npx tsc --noEmit` passed. Lint: `npm run lint` passed. Production build: `npm run build` passed.
-- Dependency audit: findings were reduced from 19 (2 moderate, 15 high, 2 critical) to 1 critical package entry. Patched compatible transitive dependencies, upgraded Next.js to 14.2.35, bcrypt to 6.0.0, Nodemailer to 10.0.16, and Tailwind CSS to 4.3.3; added targeted PostCSS and glob overrides. The remaining entry is Next.js (the audit JSON links 23 advisories, including critical GHSA-p293-qw3h-jr36 and GHSA-2xp9-vwfh-vxw4). npm recommends Next 16.4.0. That major migration has breaking async `cookies()`/`params`, `middleware`→`proxy`, and ESLint 9 flat-config requirements; React 18 is within its declared peer range. The attempted upgrade was rejected by the automatic approval reviewer as a broad breaking framework migration not authorized as an exact action. It was not retried or bypassed; obtain approval before that migration.
+- Previous checkpoint audit: findings were reduced from 19 to 1 critical Next.js package entry; this historical result was superseded by the Next.js 16 migration documented in Section 16.
 - PostgreSQL: connection not attempted because neither the process environment nor a local `.env` contains `DATABASE_URL`. Configure `DATABASE_URL` with the actual PostgreSQL username, password, host, port, database name, and `?schema=public`; no credentials were created or printed.
 
 ---
@@ -733,9 +737,16 @@ Most legacy methods in `lib/db.ts` remain placeholders that return mock data. Ph
 The repository has no configured Jest/React Testing Library/Playwright packages or scripts. Phases 4C.1–4C.3 include focused tests using Node's built-in test runner; broad application test coverage remains incomplete.
 
 ### Verification Setup
-ESLint uses the Next.js Core Web Vitals rules. TypeScript, lint, production build, and the focused booking/JWT tests passed in the latest maintenance verification. The production build no longer reports an Edge Runtime `crypto` warning.
+ESLint uses the Next.js Core Web Vitals rules through ESLint 9 flat config. Migration verification: TypeScript, lint, Prisma client generation, production build, and 35 focused booking/JWT regression tests passed. The build uses Turbopack and reports the Proxy route; no Edge Runtime crypto warning was reported.
 
-The latest `npm audit` reports 1 critical Next.js package entry in version 14.2.35 (23 linked advisories, including Windows-hosted RCE GHSA-p293-qw3h-jr36 and AVIF image-optimization RCE GHSA-2xp9-vwfh-vxw4). npm recommends Next.js 16.4.0. This major migration changes synchronous `cookies()`/`params`, renames middleware to proxy, and requires ESLint 9 flat config. The automatic approval reviewer rejected the requested upgrade attempt as a broad breaking migration not authorized as an exact action; it was not retried. No force audit fix was used.
+### Next.js 16 Security Migration (2026-10)
+- Migrated Next.js 14.2.35 to stable Next.js 16.4.0, React/React DOM 19.3.0, ESLint 9.39.5, and `eslint-config-next` 16.4.0 using regular npm peer resolution.
+- Converted `cookies()` and dynamic route `params` to asynchronous APIs, migrated the booking form to React 19 `useActionState`, and renamed `middleware.ts` to `proxy.ts` while preserving the matcher, JWT verification, login redirect, and role checks.
+- Corrected the legacy `use action` directive in auth server actions to supported `use server`; Next 16 rejected the old directive during production compilation.
+- ESLint now uses flat config and `eslint .`; Next updated `tsconfig.json` to its automatic JSX runtime and development type include.
+- ESLint 10 was evaluated but Next's bundled import, JSX accessibility, and React plugins restrict their peer ranges to ESLint 9. The migration therefore keeps ESLint 9.39.5 with normal peer resolution; npm currently marks that final ESLint 9 release unsupported, so this remains a toolchain maintenance item until the Next config plugins accept ESLint 10.
+- Audit before migration: 1 critical Next.js package entry. Post-migration `npm audit`: 0 critical and 5 high, all in the lint-only chain `eslint-config-next` → `@next/eslint-plugin-next` → `fast-glob` → `micromatch` → `braces`. The npm registry currently lists `braces` 3.0.3 as latest; no patched release or safe automatic fix is available. Do not use `npm audit fix --force` (npm proposes a major downgrade to eslint-config-next 14.2.35). `npm audit --omit=dev` reports 0 vulnerabilities.
+- PostgreSQL was not contacted and no database migration was applied because no real `DATABASE_URL` is configured. Booking/JWT unit tests use an in-memory repository; runtime database connectivity remains unverified.
 
 PostgreSQL runtime connectivity remains unverified. Provide `DATABASE_URL=postgresql://<username>:<password>@<host>:<port>/<database>?schema=public` in the ignored local `.env` file or process environment with real connection details before validating Prisma or applying the migration.
 

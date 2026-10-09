@@ -2,7 +2,7 @@
 // Authentication Server Actions (Registration, Login, Logout)
 // =====================================================================
 
-'use action'
+'use server'
 
 import { db } from '../db'
 import { hashPassword, verifyPassword } from './password'

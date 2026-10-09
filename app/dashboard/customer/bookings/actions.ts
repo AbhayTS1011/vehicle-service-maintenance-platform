@@ -13,7 +13,7 @@ import {
 } from '@/lib/booking/booking-service'
 
 export async function cancelBooking(formData: FormData): Promise<BookingCancellationResult> {
-  const token = cookies().get('apex_session')?.value
+  const token = (await cookies()).get('apex_session')?.value
   const payload = token ? await verifyToken(token) : null
   const role = payload?.role as UserRole | undefined
   const actor = payload?.userId && role ? { id: payload.userId, role } : null
@@ -25,7 +25,7 @@ export async function cancelBooking(formData: FormData): Promise<BookingCancella
 }
 
 export async function createBooking(_previousState: BookingResult | null, formData: FormData): Promise<BookingResult> {
-  const token = cookies().get('apex_session')?.value
+  const token = (await cookies()).get('apex_session')?.value
   const payload = token ? await verifyToken(token) : null
   const role = payload?.role as UserRole | undefined
   const actor = payload?.userId && role ? { id: payload.userId, role } : null

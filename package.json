@@ -7,17 +7,17 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "db:generate": "prisma generate"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0",
     "bcrypt": "6.0.0",
     "jose": "^5.8.0",
-    "next": "14.2.35",
+    "next": "16.4.0",
     "nodemailer": "10.0.16",
-    "react": "18.3.1",
-    "react-dom": "18.3.1",
+    "react": "19.3.0",
+    "react-dom": "19.3.0",
     "react-hook-form": "^7.52.2",
     "zod": "^3.23.8"
   },
@@ -25,20 +25,17 @@
     "@types/bcrypt": "^5.0.2",
     "@types/node": "20.19.43",
     "@types/nodemailer": "^6.4.15",
-    "@types/react": "18.3.31",
-    "@types/react-dom": "^18.3.0",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
     "autoprefixer": "^10.4.20",
-    "eslint": "^8.57.1",
-    "eslint-config-next": "^14.2.5",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "16.4.0",
     "postcss": "^8.4.41",
     "prisma": "^5.19.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3"
   },
   "overrides": {
-    "@next/eslint-plugin-next": {
-      "glob": "10.5.0"
-    },
     "postcss": "$postcss"
   }
 }

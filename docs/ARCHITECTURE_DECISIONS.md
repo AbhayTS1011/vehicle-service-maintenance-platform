@@ -4,9 +4,9 @@
 - **Decision**: Use PostgreSQL as the core database and define all schemas, functions, triggers, views, and indexes in raw SQL (`database/*.sql`). Prisma is used strictly for type generation and type-safe database access (`prisma db pull`), not as the schema migration source of truth.
 - **Rationale**: University DBMS project requirements mandate demonstrating advanced relational database design (normalization, foreign keys, constraints, triggers, functions, views, indexing, CTEs, window functions). SQL-first ensures complete control over database capabilities.
 
-## 2. Next.js 14+ App Router & TypeScript
-- **Decision**: Use Next.js App Router with TypeScript throughout.
-- **Rationale**: Provides modern React Server Components, server actions, clean API routing, and robust type safety across frontend and backend.
+## 2. Next.js 16 App Router & TypeScript
+- **Decision**: Use Next.js 16 App Router with React 19 and TypeScript throughout. Dynamic route params and request APIs such as `cookies()` are asynchronous; protected dashboard routing uses the Node.js `proxy.ts` entry point.
+- **Rationale**: Provides React Server Components, server actions, clean API routing, and robust type safety across frontend and backend while keeping the framework on a patched stable release.
 
 ## 3. Authentication & Authorization (JWT + RBAC)
 - **Decision**: Implement stateless authentication using JWT (signed via `jose`), password hashing with `bcrypt`, and secure HTTP-only cookies, combined with server-side Role-Based Access Control (RBAC: `CUSTOMER`, `SERVICE_PROVIDER`, `FLEET_MANAGER`, `ADMIN`).

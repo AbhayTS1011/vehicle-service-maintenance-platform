@@ -15,14 +15,15 @@ const dateTime = new Intl.DateTimeFormat('en-IN', {
 export default async function CustomerBookingDetailsPage({
   params,
 }: {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }) {
-  const token = cookies().get('apex_session')?.value
+  const [{ id }, cookieStore] = await Promise.all([params, cookies()])
+  const token = cookieStore.get('apex_session')?.value
   const payload = token ? await verifyToken(token) : null
   if (!payload?.userId) redirect('/login')
   if (payload.role !== UserRole.CUSTOMER && payload.role !== UserRole.FLEET_MANAGER) redirect('/dashboard')
 
-  const bookingId = Number(params.id)
+  const bookingId = Number(id)
   const result = await getCustomerBookingDetails(
     { id: payload.userId, role: payload.role },
     bookingId,

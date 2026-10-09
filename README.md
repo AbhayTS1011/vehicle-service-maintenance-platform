@@ -56,7 +56,7 @@ This project solves these challenges through a robust PostgreSQL database-backed
 
 | Layer | Technology |
 | :--- | :--- |
-| **Frontend** | Next.js 14+ (App Router), React 18+, TypeScript, Tailwind CSS / Custom Styling |
+| **Frontend** | Next.js 16 (App Router), React 19, TypeScript, Tailwind CSS / Custom Styling |
 | **Backend** | Next.js API Routes, Server Actions, Business Logic Layer |
 | **Database** | PostgreSQL 14+ (SQL-First Approach) |
 | **ORM / Type Generation** | Prisma (used strictly for type generation and type-safe access) |

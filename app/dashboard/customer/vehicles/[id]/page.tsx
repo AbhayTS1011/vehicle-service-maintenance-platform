@@ -5,7 +5,8 @@
 import { db } from '@/lib/db'
 import Link from 'next/link'
 
-export default function VehicleDetailsPage({ params }: { params: { id: string } }) {
+export default async function VehicleDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   // In a full implementation, this would fetch the vehicle from the database
   // and check ownership via server-side validation
   // For now, display placeholder content

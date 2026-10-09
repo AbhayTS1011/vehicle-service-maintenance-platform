@@ -1,6 +1,7 @@
 'use client'
 
-import { useFormState, useFormStatus } from 'react-dom'
+import { useActionState } from 'react'
+import { useFormStatus } from 'react-dom'
 import { createBooking } from '../actions'
 import type { BookingResult } from '@/lib/booking/booking-service'
 
@@ -16,7 +17,7 @@ export default function BookingForm({
   vehicles: Array<{ id: number; make: string; model: string; year: number; licensePlate: string }>
   serviceTypes: Array<{ id: number; name: string; description: string | null }>
 }) {
-  const [state, formAction] = useFormState<BookingResult | null, FormData>(createBooking, null)
+  const [state, formAction] = useActionState<BookingResult | null, FormData>(createBooking, null)
 
   if (vehicles.length === 0) {
     return <p>Add a vehicle to your account before requesting a service.</p>

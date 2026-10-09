@@ -6,7 +6,7 @@ import { verifyToken } from '@/lib/auth/jwt'
 import BookingForm from './BookingForm'
 
 export default async function NewBookingPage() {
-  const token = cookies().get('apex_session')?.value
+  const token = (await cookies()).get('apex_session')?.value
   const payload = token ? await verifyToken(token) : null
   if (!payload?.userId) redirect('/login')
   if (payload.role !== UserRole.CUSTOMER && payload.role !== UserRole.FLEET_MANAGER) redirect('/dashboard')

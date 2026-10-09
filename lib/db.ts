@@ -102,6 +102,20 @@ export const db = {
     },
   },
   booking: {
+    async findManyForCustomer(customerId: number) {
+      return prisma.booking.findMany({
+        where: { customerId },
+        select: {
+          id: true,
+          status: true,
+          scheduledDate: true,
+          createdAt: true,
+          vehicle: { select: { make: true, model: true, licensePlate: true } },
+          serviceType: { select: { name: true } },
+        },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      })
+    },
     async findUnique({ where }: { where: { id: number } }) {
       return null
     },

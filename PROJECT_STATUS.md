@@ -25,8 +25,8 @@ The platform manages the complete vehicle-service lifecycle for a single service
 
 ```text
 Branch: main
-Latest known stable commit before Phase 4C.1: 7bcb47a
-Commit message: docs: add project status handoff
+Latest verified checkpoint before Phase 4C.2: 98d0f1d
+Commit message: feat: implement booking creation
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -45,7 +45,7 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Phase 4A — Service Center Management | COMPLETE |
 | Phase 4B — Mechanic Management | COMPLETE |
 | Phase 4C.1 — Booking Creation | COMPLETE (database connection not verified in this environment) |
-| Phase 4C.2 — Booking Listing | NOT STARTED |
+| Phase 4C.2 — Booking Listing | COMPLETE (PostgreSQL connectivity not verified) |
 | Remaining Phase 4C — Booking Management | NOT STARTED |
 | Phase 5 — Service Records & Parts | NOT STARTED |
 | Phase 6 — Invoicing | NOT STARTED |
@@ -553,23 +553,25 @@ PLANNED        — In roadmap but not started
 ## CURRENT STOP POINT
 ```
 
-Development is stopped after **Phase 4C.1 — Booking Creation**.
+Development is stopped after **Phase 4C.2 — Booking Listing**.
 
 - Customers can submit a new booking request for their own vehicle and an existing service type. Requests are created with `PENDING` status.
 - Booking creation uses Prisma against PostgreSQL. The legacy user, vehicle, service-center, and mechanic methods in `lib/db.ts` remain mock placeholders; booking creation itself is not in-memory.
 - A live PostgreSQL connection was not available during verification (`DATABASE_URL` and `.env` were absent), so database runtime connectivity was not verified.
-- The next implementation task (**Phase 4C.2 — Booking Listing**) has NOT been started.
+- The customer booking list is server rendered and queries Prisma/PostgreSQL with a `customerId` filter derived from the signed session. It shows booking ID, vehicle, service, requested date, status, and creation date.
+- Booking listing has empty, loading, and safe error states. No booking lifecycle actions are implemented.
+- The remaining booking lifecycle features are NOT STARTED.
 - A future session must NOT automatically begin Phase 4C or any other feature.
 - Wait for explicit instructions from the user before implementing the next task.
 
-Current checkpoint: this Phase 4C.1 implementation commit (`feat: implement booking creation`), branch `main`.
+Latest verified checkpoint before this Phase 4C.2 change: **Commit `98d0f1d`** — `feat: implement booking creation`, branch `main`.
 
-Verification for Phase 4C.1:
-- Focused tests: 6 passed with Node's built-in test runner.
+Verification for Phase 4C.2:
+- Focused booking tests: 12 passed with Node's built-in test runner, including Phase 4C.1 regression cases.
 - TypeScript: `npx tsc --noEmit` passed.
-- Production build: an initial run passed before the final styling/documentation edits; later runs failed with `EPERM` while Next.js created generated `.next` directories. The final source build is therefore not confirmed.
-- Lint: `npm run lint` could not run unattended because Next.js opened its first-time ESLint setup prompt; no ESLint configuration exists.
-- Live PostgreSQL: not verified because `DATABASE_URL` and `.env` were absent.
+- Lint: `npm run lint` is blocked by Next.js's first-time interactive ESLint configuration prompt; no ESLint configuration exists.
+- Production build: failed with `EPERM` creating `.next/static/chunks`. The build emitted an existing Edge Runtime warning for `crypto` imported by `lib/auth/jwt.ts`.
+- Live PostgreSQL: not verified because `DATABASE_URL` and `.env` were absent. Listing tests use repository mocks and do not establish live DB connectivity.
 
 ---
 
@@ -581,7 +583,8 @@ Based on `PLAN.md` planned phase order:
 Phase 4C.1 — Booking Creation — COMPLETE (database connection not verified)
   • Customer booking form, server-side validation, ownership and service-type checks
   • New booking requests are stored through Prisma with PENDING status
-Phase 4C.2 — Booking Listing — NOT STARTED
+Phase 4C.2 — Booking Listing — COMPLETE (database connection not verified)
+  • Customer-scoped server-rendered booking list with loading, empty, and error states
 Phase 4C remaining — Lifecycle, availability, and provider appointment management — NOT STARTED
 
 Phase 5 — Service Records & Parts — NOT STARTED
@@ -623,7 +626,7 @@ Phase 11 — Polish & Deployment — NOT STARTED
 The original plan has 39 tasks across 12 phases; remaining work is not re-estimated here.
 ```
 
-> **Note**: Phase 4C.1 only implements booking creation. Phase 4C.2 and later booking functionality remain NOT STARTED.
+> **Note**: Phase 4C.1 implements booking creation and Phase 4C.2 implements customer booking listing. All other booking functionality remains NOT STARTED.
 
 ---
 
@@ -704,7 +707,7 @@ The project operates as a single service center model. No multi-location support
 Most legacy methods in `lib/db.ts` remain placeholders that return mock data. Phase 4C.1 booking catalog lookups and booking creation use Prisma/PostgreSQL. The database connection was unavailable during implementation verification, so live persistence still needs an environment with `DATABASE_URL` and the SQL schema applied.
 
 ### Incomplete Test Coverage
-The repository has no configured Jest/React Testing Library/Playwright packages or scripts. Phase 4C.1 includes focused tests using Node's built-in test runner; broad application test coverage remains incomplete.
+The repository has no configured Jest/React Testing Library/Playwright packages or scripts. Phase 4C.1 and Phase 4C.2 include focused tests using Node's built-in test runner; broad application test coverage remains incomplete.
 
 ### Partially Implemented CRUD
 - Service center edit: UI present, data mocked in `lib/db.ts`
@@ -807,17 +810,4 @@ Do not force push.
 
 ## 20. FINAL RESPONSE
 
-```text
-PROJECT STATUS HANDOFF CREATED
-
-File: PROJECT_STATUS.md
-Current checkpoint: 584dd59
-Phase 4B: COMPLETE
-Next phase: Phase 4C — Booking System — NOT STARTED
-
-Git: Committed and pushed successfully
-
-Please verify the push succeeded and the repository state is clean before beginning any new development task.
-```
-
-Then STOP. Do not begin another development task.
+The latest implementation and Git checkpoint are reported in the completion message for the current task. Stop after the explicitly requested phase; do not begin another development task without user instructions.

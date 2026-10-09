@@ -18,6 +18,38 @@ export type BookingRepository = {
 
 export type BookingResult = { success: true } | { success: false; error: string }
 
+export type CustomerBookingSummary = {
+  id: number
+  status: string
+  scheduledDate: Date
+  createdAt: Date
+  vehicle: { make: string; model: string; licensePlate: string }
+  serviceType: { name: string }
+}
+
+export type CustomerBookingListResult =
+  | { success: true; bookings: CustomerBookingSummary[] }
+  | { success: false; error: string }
+
+export async function listCustomerBookings(
+  actor: BookingActor,
+  repository: { findForCustomer: (customerId: number) => Promise<CustomerBookingSummary[]> },
+): Promise<CustomerBookingListResult> {
+  if (!actor || !Number.isSafeInteger(actor.id)) {
+    return { success: false, error: 'Please sign in to view your bookings.' }
+  }
+  if (actor.role !== UserRole.CUSTOMER && actor.role !== UserRole.FLEET_MANAGER) {
+    return { success: false, error: 'You do not have permission to view customer bookings.' }
+  }
+
+  try {
+    const bookings = await repository.findForCustomer(actor.id)
+    return { success: true, bookings }
+  } catch {
+    return { success: false, error: 'Your bookings could not be loaded. Please try again.' }
+  }
+}
+
 export async function createCustomerBooking(
   actor: BookingActor,
   input: unknown,

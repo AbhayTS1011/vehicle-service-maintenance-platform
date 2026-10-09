@@ -27,8 +27,8 @@ The platform manages the complete vehicle-service lifecycle for a single service
 Branch: main
 Latest completed feature checkpoint: 01f2009
 Commit message: feat: implement customer booking details
-Latest maintenance commit before this handoff: bdb5836 (`chore: stabilize lint build and project verification`).
-Current maintenance task: login lint fix and production build verification; see the latest Git commit after this handoff.
+Latest verified maintenance checkpoint: `chore: remediate dependency and runtime issues` (separate from feature work).
+Current completed feature phase: Phase 4C.3 — Customer Booking Details.
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -49,6 +49,7 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Phase 4C.1 — Booking Creation | COMPLETE (database connection not verified in this environment) |
 | Phase 4C.2 — Booking Listing | COMPLETE (PostgreSQL connectivity not verified) |
 | Phase 4C.3 — Customer Booking Details | COMPLETE (build verified; PostgreSQL connectivity not verified) |
+| Phase 4C.4 — Customer Booking Cancellation | NOT STARTED |
 | Remaining Phase 4C — Booking Management | NOT STARTED |
 | Phase 5 — Service Records & Parts | NOT STARTED |
 | Phase 6 — Invoicing | NOT STARTED |
@@ -269,12 +270,14 @@ CREATE TABLE mechanics (
 | **Deployment** | Vercel (frontend), PostgreSQL hosting | Not yet configured |
 
 **Exact versions**:
-- Next.js: 14.2.5
+- Next.js: 14.2.35
 - React: 18.3.1
 - TypeScript: 5.9.3
 - Prisma: ^5.19.0
-- bcrypt: ^5.1.1
+- bcrypt: 6.0.0
 - jose: ^5.8.0
+- Tailwind CSS: 4.3.3
+- Nodemailer: 10.0.16
 
 ---
 
@@ -570,15 +573,16 @@ Development is stopped after **Phase 4C.3 — Customer Booking Details**.
 - A future session must NOT automatically begin Phase 4C or any other feature.
 - Wait for explicit instructions from the user before implementing the next task.
 
-Latest completed feature checkpoint: **Commit `01f2009`** — `feat: implement customer booking details`, branch `main`. Maintenance changes are tracked in separate commits.
+Latest completed feature checkpoint: **Commit `01f2009`** — `feat: implement customer booking details`, branch `main`. Maintenance fixes are recorded in a separate maintenance commit.
 
 Verification for Phase 4C.3:
 - Focused booking tests: 18 passed with Node's built-in test runner, covering creation, listing, ownership, not found, and safe database errors.
 - TypeScript: `npx tsc --noEmit` passed.
-- Lint: `npm run lint` passed with no warnings or errors after escaping the apostrophe in `app/login/page.tsx` as `Don&apos;t`.
-- Production build: `npm run build` passed and generated all 13 static pages. A clean `.next` build required elevated filesystem access after sandboxed attempts returned `EPERM`. Next emitted an Edge Runtime warning because `lib/auth/jwt.ts` loads Node's `crypto` module; this was not changed as part of the login lint fix.
-- Dependency audit: `npm audit` reports 19 vulnerabilities (2 moderate, 15 high, 2 critical). Suggested fixes for major findings require breaking upgrades (including Next.js/ESLint config, Tailwind, and Nodemailer); no force audit fix was applied. Track dependency remediation as separate work.
-- PostgreSQL: connection not attempted because `DATABASE_URL` and `.env` are absent. `npx prisma validate` was attempted and stopped because Prisma requires `DATABASE_URL`; it did not connect to a database.
+- Lint: `npm run lint` passed with no warnings or errors.
+- Production build: `npm run build` passed and generated all 13 static pages. The prior Edge Runtime warning disappeared after replacing Node `crypto` with `jose` in the middleware JWT module. The build required elevated filesystem access to write generated `.next` output.
+- Maintenance security tests: 5 JWT tests passed for valid and legacy-format HS256 tokens, modified signatures, expiration, and malformed tokens. Combined booking and JWT tests: 23 passed.
+- Dependency audit: findings were reduced from 19 (2 moderate, 15 high, 2 critical) to 1 critical package entry. Patched compatible transitive dependencies, upgraded Next.js to 14.2.35, bcrypt to 6.0.0, Nodemailer to 10.0.16, and Tailwind CSS to 4.3.3; added targeted PostCSS and glob overrides. The remaining entry is Next.js (the audit JSON links 23 advisories, including critical GHSA-p293-qw3h-jr36 and GHSA-2xp9-vwfh-vxw4). npm recommends Next 16.4.0. That major migration has breaking async `cookies()`/`params`, `middleware`→`proxy`, and ESLint 9 flat-config requirements; React 18 is within its declared peer range. The attempted upgrade was rejected by the automatic approval reviewer as a broad breaking framework migration not authorized as an exact action. It was not retried or bypassed; obtain approval before that migration.
+- PostgreSQL: connection not attempted because neither the process environment nor a local `.env` contains `DATABASE_URL`. Configure `DATABASE_URL` with the actual PostgreSQL username, password, host, port, database name, and `?schema=public`; no credentials were created or printed.
 
 ---
 
@@ -719,11 +723,11 @@ Most legacy methods in `lib/db.ts` remain placeholders that return mock data. Ph
 The repository has no configured Jest/React Testing Library/Playwright packages or scripts. Phases 4C.1–4C.3 include focused tests using Node's built-in test runner; broad application test coverage remains incomplete.
 
 ### Verification Setup
-ESLint is configured with the Next.js 14.2.5 Core Web Vitals rules. Full-project lint passes after escaping the login page apostrophe. Production build passes with a warning that `lib/auth/jwt.ts` imports Node `crypto` in an Edge Runtime context.
+ESLint uses the Next.js Core Web Vitals rules. TypeScript, lint, production build, and the focused booking/JWT tests passed in the latest maintenance verification. The production build no longer reports an Edge Runtime `crypto` warning.
 
-`npm audit` reports 19 vulnerabilities (2 moderate, 15 high, 2 critical). Several recommended remediations require breaking dependency upgrades; no forced upgrades were applied. Review and resolve this dependency debt in a separately scoped maintenance task.
+The latest `npm audit` reports 1 critical Next.js package entry in version 14.2.35 (23 linked advisories, including Windows-hosted RCE GHSA-p293-qw3h-jr36 and AVIF image-optimization RCE GHSA-2xp9-vwfh-vxw4). npm recommends Next.js 16.4.0. This major migration changes synchronous `cookies()`/`params`, renames middleware to proxy, and requires ESLint 9 flat config. The automatic approval reviewer rejected the requested upgrade attempt as a broad breaking migration not authorized as an exact action; it was not retried. No force audit fix was used.
 
-PostgreSQL runtime connectivity remains unverified. Configure a real `DATABASE_URL` in the local ignored `.env` file or process environment before running Prisma validation or database-backed features.
+PostgreSQL runtime connectivity remains unverified. Provide an actual `DATABASE_URL` in the ignored local `.env` file or process environment, formatted as a PostgreSQL connection string with real credentials, before validating Prisma against a database.
 
 ### Partially Implemented CRUD
 - Service center edit: UI present, data mocked in `lib/db.ts`

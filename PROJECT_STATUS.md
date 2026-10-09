@@ -25,8 +25,8 @@ The platform manages the complete vehicle-service lifecycle for a single service
 
 ```text
 Branch: main
-Latest verified checkpoint before Phase 4C.2: 98d0f1d
-Commit message: feat: implement booking creation
+Latest verified checkpoint before Phase 4C.3: 3b23bcc
+Commit message: feat: implement customer booking listing
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -46,6 +46,7 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Phase 4B — Mechanic Management | COMPLETE |
 | Phase 4C.1 — Booking Creation | COMPLETE (database connection not verified in this environment) |
 | Phase 4C.2 — Booking Listing | COMPLETE (PostgreSQL connectivity not verified) |
+| Phase 4C.3 — Customer Booking Details | COMPLETE (build and PostgreSQL connectivity not verified) |
 | Remaining Phase 4C — Booking Management | NOT STARTED |
 | Phase 5 — Service Records & Parts | NOT STARTED |
 | Phase 6 — Invoicing | NOT STARTED |
@@ -450,7 +451,9 @@ if invalid → redirect to /login
   — Provider dashboard (vehicle/service management)
 /dashboard/customer — CUSTOMER or FLEET_MANAGER
   ├── /vehicles — vehicle management
-  └── /bookings/new — create a PENDING service booking (Phase 4C.1)
+  └── /bookings
+      ├── /new — create a PENDING service booking (Phase 4C.1)
+      └── /[id] — view an owned booking's details (Phase 4C.3)
 ```
 
 **Protected routes**: All `/dashboard/*` routes require authentication and valid role.
@@ -553,24 +556,25 @@ PLANNED        — In roadmap but not started
 ## CURRENT STOP POINT
 ```
 
-Development is stopped after **Phase 4C.2 — Booking Listing**.
+Development is stopped after **Phase 4C.3 — Customer Booking Details**.
 
 - Customers can submit a new booking request for their own vehicle and an existing service type. Requests are created with `PENDING` status.
 - Booking creation uses Prisma against PostgreSQL. The legacy user, vehicle, service-center, and mechanic methods in `lib/db.ts` remain mock placeholders; booking creation itself is not in-memory.
 - A live PostgreSQL connection was not available during verification (`DATABASE_URL` and `.env` were absent), so database runtime connectivity was not verified.
 - The customer booking list is server rendered and queries Prisma/PostgreSQL with a `customerId` filter derived from the signed session. It shows booking ID, vehicle, service, requested date, status, and creation date.
+- The customer booking details page queries by both booking ID and customer ID from the signed session. It shows schema-backed booking, vehicle, service type, service center, dates, status, and optional notes. A mismatched customer/booking pair returns not found.
 - Booking listing has empty, loading, and safe error states. No booking lifecycle actions are implemented.
 - The remaining booking lifecycle features are NOT STARTED.
 - A future session must NOT automatically begin Phase 4C or any other feature.
 - Wait for explicit instructions from the user before implementing the next task.
 
-Latest verified checkpoint before this Phase 4C.2 change: **Commit `98d0f1d`** — `feat: implement booking creation`, branch `main`.
+Latest verified checkpoint before this Phase 4C.3 change: **Commit `3b23bcc`** — `feat: implement customer booking listing`, branch `main`.
 
-Verification for Phase 4C.2:
-- Focused booking tests: 12 passed with Node's built-in test runner, including Phase 4C.1 regression cases.
+Verification for Phase 4C.3:
+- Focused booking tests: 18 passed with Node's built-in test runner, covering creation, listing, ownership, not found, and safe database errors.
 - TypeScript: `npx tsc --noEmit` passed.
 - Lint: `npm run lint` is blocked by Next.js's first-time interactive ESLint configuration prompt; no ESLint configuration exists.
-- Production build: failed with `EPERM` creating `.next/static/chunks`. The build emitted an existing Edge Runtime warning for `crypto` imported by `lib/auth/jwt.ts`.
+- Production build: failed with `EPERM` creating `.next/types/app`. A direct write probe to that generated path succeeded, so general workspace write permission is available; the failure is specific to the Next.js build process here.
 - Live PostgreSQL: not verified because `DATABASE_URL` and `.env` were absent. Listing tests use repository mocks and do not establish live DB connectivity.
 
 ---
@@ -585,6 +589,8 @@ Phase 4C.1 — Booking Creation — COMPLETE (database connection not verified)
   • New booking requests are stored through Prisma with PENDING status
 Phase 4C.2 — Booking Listing — COMPLETE (database connection not verified)
   • Customer-scoped server-rendered booking list with loading, empty, and error states
+Phase 4C.3 — Customer Booking Details — COMPLETE (build and database connection not verified)
+  • Customer-scoped server-rendered details page; booking ID and authenticated customer ID are queried together
 Phase 4C remaining — Lifecycle, availability, and provider appointment management — NOT STARTED
 
 Phase 5 — Service Records & Parts — NOT STARTED
@@ -626,7 +632,7 @@ Phase 11 — Polish & Deployment — NOT STARTED
 The original plan has 39 tasks across 12 phases; remaining work is not re-estimated here.
 ```
 
-> **Note**: Phase 4C.1 implements booking creation and Phase 4C.2 implements customer booking listing. All other booking functionality remains NOT STARTED.
+> **Note**: Phase 4C.1 implements booking creation, Phase 4C.2 implements customer booking listing, and Phase 4C.3 implements customer booking details. All other booking functionality remains NOT STARTED.
 
 ---
 
@@ -707,7 +713,7 @@ The project operates as a single service center model. No multi-location support
 Most legacy methods in `lib/db.ts` remain placeholders that return mock data. Phase 4C.1 booking catalog lookups and booking creation use Prisma/PostgreSQL. The database connection was unavailable during implementation verification, so live persistence still needs an environment with `DATABASE_URL` and the SQL schema applied.
 
 ### Incomplete Test Coverage
-The repository has no configured Jest/React Testing Library/Playwright packages or scripts. Phase 4C.1 and Phase 4C.2 include focused tests using Node's built-in test runner; broad application test coverage remains incomplete.
+The repository has no configured Jest/React Testing Library/Playwright packages or scripts. Phases 4C.1–4C.3 include focused tests using Node's built-in test runner; broad application test coverage remains incomplete.
 
 ### Partially Implemented CRUD
 - Service center edit: UI present, data mocked in `lib/db.ts`
@@ -748,7 +754,7 @@ The repository has no configured Jest/React Testing Library/Playwright packages 
 
 1. Read `PROJECT_STATUS.md`.
 2. Read `PLAN.md` to understand the full phase roadmap.
-3. Verify the current Git commit: `git log --oneline -1` should return `584dd59 feat: implement mechanic management`.
+3. Verify the current Git commit with `git log --oneline -1`; do not assume a fixed checkpoint.
 4. Inspect the actual repository before coding — do not assume this document is up-to-date with the latest code.
 5. Confirm the requested task with the user before implementing.
 6. Implement ONLY that task — do not automatically begin the next phase.
@@ -776,10 +782,10 @@ The repository has no configured Jest/React Testing Library/Playwright packages 
 After creating this file:
 
 1. ✅ Read the entire file for contradictions.
-2. ✅ Compare phase status against the actual repository (verified: commit `584dd59`, phases 1-4B complete).
+2. ✅ Compare phase status against the actual repository; current phases 4C.1–4C.3 are recorded above.
 3. ✅ Verify the latest Git commit matches expectations.
 4. ✅ Verify no secrets are included (`.env`, credentials, API keys not committed).
-5. ✅ Verify no future phase is incorrectly marked complete (phases 4C+ are NOT STARTED).
+5. ✅ Verify no unimplemented booking lifecycle or later-phase functionality is marked complete.
 6. ✅ Ensure the document is concise enough to be useful as a handoff document.
 7. ✅ Do NOT modify application code.
 8. ✅ Do NOT implement any feature.

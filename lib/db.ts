@@ -102,6 +102,21 @@ export const db = {
     },
   },
   booking: {
+    async findForCustomerById(bookingId: number, customerId: number) {
+      return prisma.booking.findFirst({
+        where: { id: bookingId, customerId },
+        select: {
+          id: true,
+          status: true,
+          scheduledDate: true,
+          createdAt: true,
+          notes: true,
+          vehicle: { select: { make: true, model: true, licensePlate: true } },
+          serviceType: { select: { name: true } },
+          serviceCenter: { select: { name: true, address: true, phone: true, operatingHours: true } },
+        },
+      })
+    },
     async findManyForCustomer(customerId: number) {
       return prisma.booking.findMany({
         where: { customerId },

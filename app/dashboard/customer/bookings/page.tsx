@@ -41,7 +41,7 @@ export default async function CustomerBookingsPage() {
             <table aria-label="Your service bookings" style={{ width: '100%', borderCollapse: 'collapse', minWidth: '720px' }}>
               <thead>
                 <tr>
-                  {['Reference', 'Vehicle', 'Service', 'Requested for', 'Status', 'Requested on'].map((heading) => (
+                  {['Reference', 'Vehicle', 'Service', 'Requested for', 'Status', 'Requested on', 'Details'].map((heading) => (
                     <th key={heading} scope="col" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid #475569', color: '#cbd5e1' }}>
                       {heading}
                     </th>
@@ -59,6 +59,11 @@ export default async function CustomerBookingsPage() {
                     <td style={{ padding: '0.75rem', borderBottom: '1px solid #334155' }}>{dateTime.format(booking.scheduledDate)}</td>
                     <td style={{ padding: '0.75rem', borderBottom: '1px solid #334155' }}>{booking.status.replaceAll('_', ' ')}</td>
                     <td style={{ padding: '0.75rem', borderBottom: '1px solid #334155' }}>{dateTime.format(booking.createdAt)}</td>
+                    <td style={{ padding: '0.75rem', borderBottom: '1px solid #334155' }}>
+                      <Link href={`/dashboard/customer/bookings/${booking.id}`} style={{ color: '#60a5fa', textDecoration: 'underline' }}>
+                        View details
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -31,6 +31,15 @@ export type CustomerBookingListResult =
   | { success: true; bookings: CustomerBookingSummary[] }
   | { success: false; error: string }
 
+export type CustomerBookingDetails = CustomerBookingSummary & {
+  notes: string | null
+  serviceCenter: { name: string; address: string; phone: string; operatingHours: string | null }
+}
+
+export type CustomerBookingDetailsResult =
+  | { success: true; booking: CustomerBookingDetails }
+  | { success: false; reason: 'not_found' | 'error'; error: string }
+
 export async function listCustomerBookings(
   actor: BookingActor,
   repository: { findForCustomer: (customerId: number) => Promise<CustomerBookingSummary[]> },
@@ -47,6 +56,30 @@ export async function listCustomerBookings(
     return { success: true, bookings }
   } catch {
     return { success: false, error: 'Your bookings could not be loaded. Please try again.' }
+  }
+}
+
+export async function getCustomerBookingDetails(
+  actor: BookingActor,
+  bookingId: number,
+  repository: { findForCustomer: (bookingId: number, customerId: number) => Promise<CustomerBookingDetails | null> },
+): Promise<CustomerBookingDetailsResult> {
+  if (!actor || !Number.isSafeInteger(actor.id)) {
+    return { success: false, reason: 'error', error: 'Please sign in to view this booking.' }
+  }
+  if (actor.role !== UserRole.CUSTOMER && actor.role !== UserRole.FLEET_MANAGER) {
+    return { success: false, reason: 'error', error: 'You do not have permission to view this booking.' }
+  }
+  if (!Number.isSafeInteger(bookingId) || bookingId <= 0) {
+    return { success: false, reason: 'not_found', error: 'Booking not found.' }
+  }
+
+  try {
+    const booking = await repository.findForCustomer(bookingId, actor.id)
+    if (!booking) return { success: false, reason: 'not_found', error: 'Booking not found.' }
+    return { success: true, booking }
+  } catch {
+    return { success: false, reason: 'error', error: 'Booking details could not be loaded. Please try again.' }
   }
 }
 

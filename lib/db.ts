@@ -6,7 +6,47 @@
 // In-memory store for development and testing
 // Data is lost on server restart - suitable for Phase 3 & 4 vehicle/service center management
 
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
+
 export const db = {
+  // Booking creation uses the SQL-first PostgreSQL database through Prisma.
+  // The other legacy methods below remain placeholders until their phases are implemented.
+  bookingCatalog: {
+    async vehiclesForCustomer(customerId: number) {
+      return prisma.vehicle.findMany({
+        where: { ownerId: customerId },
+        select: { id: true, make: true, model: true, year: true, licensePlate: true },
+        orderBy: { id: 'asc' },
+      })
+    },
+    async serviceTypes() {
+      return prisma.serviceType.findMany({
+        select: { id: true, name: true, description: true, basePrice: true, estimatedDurationMinutes: true },
+        orderBy: { name: 'asc' },
+      })
+    },
+    async ownsVehicle(customerId: number, vehicleId: number) {
+      return Boolean(await prisma.vehicle.findFirst({
+        where: { id: vehicleId, ownerId: customerId },
+        select: { id: true },
+      }))
+    },
+    async serviceTypeExists(serviceTypeId: number) {
+      return Boolean(await prisma.serviceType.findUnique({
+        where: { id: serviceTypeId },
+        select: { id: true },
+      }))
+    },
+    async serviceCenterId() {
+      const center = await prisma.serviceCenter.findFirst({
+        select: { id: true },
+        orderBy: { id: 'asc' },
+      })
+      return center?.id ?? null
+    },
+  },
   user: {
     async findUnique({ where }: { where: { id?: number; email?: string } }) {
       // In a Prisma implementation, this would query PostgreSQL
@@ -66,8 +106,17 @@ export const db = {
       return null
     },
     async create({ data }: { data: any }) {
-      // Placeholder
-      return { id: 1, ...data }
+      return prisma.booking.create({
+        data: {
+          customerId: data.customerId,
+          vehicleId: data.vehicleId,
+          serviceTypeId: data.serviceTypeId,
+          serviceCenterId: data.serviceCenterId,
+          scheduledDate: data.scheduledDate,
+          notes: data.notes,
+          status: 'PENDING',
+        },
+      })
     },
   },
   auditLog: {

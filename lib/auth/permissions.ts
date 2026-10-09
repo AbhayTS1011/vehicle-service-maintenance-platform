@@ -12,13 +12,11 @@ export function checkRole(userRole: UserRole, allowedRoles: UserRole[]): boolean
 }
 
 // Server-side ownership verification
-export function verifyVehicleOwnership(userId: number, vehicleId: number, userRole: UserRole): boolean {
+export async function verifyVehicleOwnership(userId: number, vehicleId: number, userRole: UserRole): Promise<boolean> {
   // Admin and Service Provider can access all vehicles
   if (userRole === 'ADMIN' || userRole === 'SERVICE_PROVIDER') {
     return true
   }
-  // For other roles, check ownership
-  // In a full Prisma implementation, this would query the database
-  // For the resilient store, ownership is checked at the API route level
-  return true
+  if (!Number.isSafeInteger(userId) || !Number.isSafeInteger(vehicleId)) return false
+  return db.bookingCatalog.ownsVehicle(userId, vehicleId)
 }

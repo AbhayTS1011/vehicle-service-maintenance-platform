@@ -25,8 +25,8 @@ The platform manages the complete vehicle-service lifecycle for a single service
 
 ```text
 Branch: main
-Latest known stable commit: 584dd59
-Commit message: feat: implement mechanic management
+Latest known stable commit before Phase 4C.1: 7bcb47a
+Commit message: docs: add project status handoff
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -44,7 +44,9 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Phase 3 — Vehicle Management | COMPLETE |
 | Phase 4A — Service Center Management | COMPLETE |
 | Phase 4B — Mechanic Management | COMPLETE |
-| Phase 4C — Booking System | NOT STARTED |
+| Phase 4C.1 — Booking Creation | COMPLETE (database connection not verified in this environment) |
+| Phase 4C.2 — Booking Listing | NOT STARTED |
+| Remaining Phase 4C — Booking Management | NOT STARTED |
 | Phase 5 — Service Records & Parts | NOT STARTED |
 | Phase 6 — Invoicing | NOT STARTED |
 | Phase 7 — Reviews & Ratings | NOT STARTED |
@@ -447,7 +449,8 @@ if invalid → redirect to /login
 /dashboard/provider — SERVICE_PROVIDER or ADMIN
   — Provider dashboard (vehicle/service management)
 /dashboard/customer — CUSTOMER or FLEET_MANAGER
-  — Customer dashboard (vehicle management, bookings)
+  ├── /vehicles — vehicle management
+  └── /bookings/new — create a PENDING service booking (Phase 4C.1)
 ```
 
 **Protected routes**: All `/dashboard/*` routes require authentication and valid role.
@@ -519,7 +522,7 @@ if invalid → redirect to /login
 ```
 
 - **Mechanic availability** — NOT STARTED — No availability tracking or scheduling system
-- **Booking management** — NOT STARTED — Full booking lifecycle (PENDING→CONFIRMED→IN_PROGRESS→COMPLETED→INVOICED) not implemented in UI
+- **Booking lifecycle management** — NOT STARTED — Booking creation is implemented; listing, editing, cancellation, staff management, and state transitions are not implemented
 - **Appointment scheduling** — NOT STARTED — No calendar/availability slot system
 - **Mechanic assignment** — NOT STARTED — No mechanism to assign mechanics to bookings
 - **Service records** — NOT STARTED — No service execution tracking beyond basic bookings
@@ -550,13 +553,23 @@ PLANNED        — In roadmap but not started
 ## CURRENT STOP POINT
 ```
 
-Development is intentionally stopped after **Phase 4B — Mechanic Management**.
+Development is stopped after **Phase 4C.1 — Booking Creation**.
 
-- The next implementation task (**Phase 4C — Booking System**) has NOT been started.
+- Customers can submit a new booking request for their own vehicle and an existing service type. Requests are created with `PENDING` status.
+- Booking creation uses Prisma against PostgreSQL. The legacy user, vehicle, service-center, and mechanic methods in `lib/db.ts` remain mock placeholders; booking creation itself is not in-memory.
+- A live PostgreSQL connection was not available during verification (`DATABASE_URL` and `.env` were absent), so database runtime connectivity was not verified.
+- The next implementation task (**Phase 4C.2 — Booking Listing**) has NOT been started.
 - A future session must NOT automatically begin Phase 4C or any other feature.
 - Wait for explicit instructions from the user before implementing the next task.
 
-Current verified checkpoint: **Commit `584dd59`** — `feat: implement mechanic management`, branch `main`.
+Current checkpoint: this Phase 4C.1 implementation commit (`feat: implement booking creation`), branch `main`.
+
+Verification for Phase 4C.1:
+- Focused tests: 6 passed with Node's built-in test runner.
+- TypeScript: `npx tsc --noEmit` passed.
+- Production build: an initial run passed before the final styling/documentation edits; later runs failed with `EPERM` while Next.js created generated `.next` directories. The final source build is therefore not confirmed.
+- Lint: `npm run lint` could not run unattended because Next.js opened its first-time ESLint setup prompt; no ESLint configuration exists.
+- Live PostgreSQL: not verified because `DATABASE_URL` and `.env` were absent.
 
 ---
 
@@ -565,11 +578,11 @@ Current verified checkpoint: **Commit `584dd59`** — `feat: implement mechanic 
 Based on `PLAN.md` planned phase order:
 
 ```text
-Phase 4C — Booking System — NOT STARTED
-  • Multi-vehicle booking with availability tracking
-  • 5-state lifecycle: PENDING → CONFIRMED → IN_PROGRESS → COMPLETED → INVOICED
-  • Invoice generation (no payment tracking)
-  • Service provider dashboard for appointment management
+Phase 4C.1 — Booking Creation — COMPLETE (database connection not verified)
+  • Customer booking form, server-side validation, ownership and service-type checks
+  • New booking requests are stored through Prisma with PENDING status
+Phase 4C.2 — Booking Listing — NOT STARTED
+Phase 4C remaining — Lifecycle, availability, and provider appointment management — NOT STARTED
 
 Phase 5 — Service Records & Parts — NOT STARTED
   • Service execution recording
@@ -607,10 +620,10 @@ Phase 11 — Polish & Deployment — NOT STARTED
   • Vercel deployment configuration
   • Production hardening
 
-Total: 39 Tasks across 12 Phases remaining (from current checkpoint).
+The original plan has 39 tasks across 12 phases; remaining work is not re-estimated here.
 ```
 
-> **Note**: Phase 4C and later are explicitly NOT STARTED. Do not assume any later functionality is implemented.
+> **Note**: Phase 4C.1 only implements booking creation. Phase 4C.2 and later booking functionality remain NOT STARTED.
 
 ---
 
@@ -688,10 +701,10 @@ The project operates as a single service center model. No multi-location support
 ## 16. KNOWN LIMITATIONS / TECHNICAL DEBT
 
 ### Mock/In-Memory DB Behavior
-`lib/db.ts` is a resilient in-memory persistence layer used for development and testing. Data is lost on server restart. The mechanic/service center CRUD methods are placeholder implementations that return mock data. In production, these would be replaced by the Prisma client querying PostgreSQL directly.
+Most legacy methods in `lib/db.ts` remain placeholders that return mock data. Phase 4C.1 booking catalog lookups and booking creation use Prisma/PostgreSQL. The database connection was unavailable during implementation verification, so live persistence still needs an environment with `DATABASE_URL` and the SQL schema applied.
 
 ### Incomplete Test Coverage
-Test infrastructure exists (Jest, React Testing Library, Playwright) but actual test files are limited. No focused mechanic/booking CRUD tests are implemented.
+The repository has no configured Jest/React Testing Library/Playwright packages or scripts. Phase 4C.1 includes focused tests using Node's built-in test runner; broad application test coverage remains incomplete.
 
 ### Partially Implemented CRUD
 - Service center edit: UI present, data mocked in `lib/db.ts`

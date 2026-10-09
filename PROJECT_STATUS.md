@@ -27,7 +27,8 @@ The platform manages the complete vehicle-service lifecycle for a single service
 Branch: main
 Latest completed feature checkpoint: 01f2009
 Commit message: feat: implement customer booking details
-Maintenance verification changes: see the latest `chore: stabilize lint build and project verification` commit in Git history.
+Latest maintenance commit before this handoff: bdb5836 (`chore: stabilize lint build and project verification`).
+Current maintenance task: login lint fix and production build verification; see the latest Git commit after this handoff.
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -47,7 +48,7 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Phase 4B — Mechanic Management | COMPLETE |
 | Phase 4C.1 — Booking Creation | COMPLETE (database connection not verified in this environment) |
 | Phase 4C.2 — Booking Listing | COMPLETE (PostgreSQL connectivity not verified) |
-| Phase 4C.3 — Customer Booking Details | COMPLETE (build and PostgreSQL connectivity not verified) |
+| Phase 4C.3 — Customer Booking Details | COMPLETE (build verified; PostgreSQL connectivity not verified) |
 | Remaining Phase 4C — Booking Management | NOT STARTED |
 | Phase 5 — Service Records & Parts | NOT STARTED |
 | Phase 6 — Invoicing | NOT STARTED |
@@ -569,13 +570,14 @@ Development is stopped after **Phase 4C.3 — Customer Booking Details**.
 - A future session must NOT automatically begin Phase 4C or any other feature.
 - Wait for explicit instructions from the user before implementing the next task.
 
-Latest completed feature checkpoint: **Commit `01f2009`** — `feat: implement customer booking details`, branch `main`. Verification/configuration maintenance is tracked separately in the latest `chore: stabilize lint build and project verification` commit.
+Latest completed feature checkpoint: **Commit `01f2009`** — `feat: implement customer booking details`, branch `main`. Maintenance changes are tracked in separate commits.
 
 Verification for Phase 4C.3:
 - Focused booking tests: 18 passed with Node's built-in test runner, covering creation, listing, ownership, not found, and safe database errors.
 - TypeScript: `npx tsc --noEmit` passed.
-- Lint setup: `.eslintrc.json` uses `next/core-web-vitals`; `eslint` 8.57.1 and `eslint-config-next` 14.2.5 are installed as development dependencies. `npm run lint` now runs non-interactively, but reports one existing `react/no-unescaped-entities` error at `app/login/page.tsx:82`; booking-related files lint cleanly.
-- Production build: after removing only the ignored, generated `.next` directory with no Node/Next process running, Next.js no longer reports the earlier `EPERM` directory-creation error and compiles successfully. The build then fails on the same existing lint error at `app/login/page.tsx:82`. A direct write probe to the `.next` path also succeeded; stale generated output was the likely cause of the earlier `EPERM` errors.
+- Lint: `npm run lint` passed with no warnings or errors after escaping the apostrophe in `app/login/page.tsx` as `Don&apos;t`.
+- Production build: `npm run build` passed and generated all 13 static pages. A clean `.next` build required elevated filesystem access after sandboxed attempts returned `EPERM`. Next emitted an Edge Runtime warning because `lib/auth/jwt.ts` loads Node's `crypto` module; this was not changed as part of the login lint fix.
+- Dependency audit: `npm audit` reports 19 vulnerabilities (2 moderate, 15 high, 2 critical). Suggested fixes for major findings require breaking upgrades (including Next.js/ESLint config, Tailwind, and Nodemailer); no force audit fix was applied. Track dependency remediation as separate work.
 - PostgreSQL: connection not attempted because `DATABASE_URL` and `.env` are absent. `npx prisma validate` was attempted and stopped because Prisma requires `DATABASE_URL`; it did not connect to a database.
 
 ---
@@ -590,7 +592,7 @@ Phase 4C.1 — Booking Creation — COMPLETE (database connection not verified)
   • New booking requests are stored through Prisma with PENDING status
 Phase 4C.2 — Booking Listing — COMPLETE (database connection not verified)
   • Customer-scoped server-rendered booking list with loading, empty, and error states
-Phase 4C.3 — Customer Booking Details — COMPLETE (build and database connection not verified)
+Phase 4C.3 — Customer Booking Details — COMPLETE (build verified; database connection not verified)
   • Customer-scoped server-rendered details page; booking ID and authenticated customer ID are queried together
 Phase 4C remaining — Lifecycle, availability, and provider appointment management — NOT STARTED
 
@@ -717,7 +719,9 @@ Most legacy methods in `lib/db.ts` remain placeholders that return mock data. Ph
 The repository has no configured Jest/React Testing Library/Playwright packages or scripts. Phases 4C.1–4C.3 include focused tests using Node's built-in test runner; broad application test coverage remains incomplete.
 
 ### Verification Setup
-ESLint is configured with the Next.js 14.2.5 Core Web Vitals rules. Full-project lint and production build currently stop on an existing unescaped apostrophe in `app/login/page.tsx:82`. Booking-related files lint successfully. The build compiles before stopping at this lint error.
+ESLint is configured with the Next.js 14.2.5 Core Web Vitals rules. Full-project lint passes after escaping the login page apostrophe. Production build passes with a warning that `lib/auth/jwt.ts` imports Node `crypto` in an Edge Runtime context.
+
+`npm audit` reports 19 vulnerabilities (2 moderate, 15 high, 2 critical). Several recommended remediations require breaking dependency upgrades; no forced upgrades were applied. Review and resolve this dependency debt in a separately scoped maintenance task.
 
 PostgreSQL runtime connectivity remains unverified. Configure a real `DATABASE_URL` in the local ignored `.env` file or process environment before running Prisma validation or database-backed features.
 

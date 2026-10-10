@@ -1,6 +1,56 @@
-import { UserRole } from '@prisma/client'
+import { BookingStatus, UserRole, type Prisma } from '@prisma/client'
 
 export type BookingActor = { id: number; role: UserRole } | null
+
+export const providerPendingBookingsQuery = {
+  where: { status: BookingStatus.PENDING },
+  select: {
+    id: true,
+    status: true,
+    scheduledDate: true,
+    createdAt: true,
+    customer: { select: { name: true } },
+    vehicle: { select: { make: true, model: true, licensePlate: true } },
+    serviceType: { select: { name: true } },
+  },
+  orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+} satisfies Prisma.BookingFindManyArgs
+
+export type ProviderPendingBookingsQuery = typeof providerPendingBookingsQuery
+export type ProviderPendingBooking = Prisma.BookingGetPayload<{
+  select: typeof providerPendingBookingsQuery.select
+}>
+
+export type ProviderPendingBookingsResult =
+  | { success: true; bookings: ProviderPendingBooking[] }
+  | { success: false; reason: 'unauthenticated' | 'forbidden' | 'error'; error: string }
+
+export type ProviderPendingBookingsRepository = {
+  findPending: (query: ProviderPendingBookingsQuery) => Promise<ProviderPendingBooking[]>
+}
+
+export async function listProviderPendingBookings(
+  actor: BookingActor,
+  repository: ProviderPendingBookingsRepository,
+): Promise<ProviderPendingBookingsResult> {
+  if (!actor || !Number.isSafeInteger(actor.id) || actor.id <= 0) {
+    return { success: false, reason: 'unauthenticated', error: 'Please sign in to view pending bookings.' }
+  }
+  if (actor.role !== UserRole.SERVICE_PROVIDER && actor.role !== UserRole.ADMIN) {
+    return { success: false, reason: 'forbidden', error: 'You do not have permission to view pending bookings.' }
+  }
+
+  try {
+    const bookings = await repository.findPending(providerPendingBookingsQuery)
+    return { success: true, bookings }
+  } catch {
+    return {
+      success: false,
+      reason: 'error',
+      error: 'Pending service requests could not be loaded. Please try again.',
+    }
+  }
+}
 
 export type BookingRepository = {
   ownsVehicle: (customerId: number, vehicleId: number) => Promise<boolean>

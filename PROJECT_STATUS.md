@@ -25,12 +25,12 @@ The platform manages the complete vehicle-service lifecycle for a single service
 
 ```text
 Branch: main
-Latest completed feature checkpoint: Phase 4C.4 — Customer Booking Cancellation (see latest feature commit on `main`).
+Latest completed feature checkpoint: Phase 4C.5 — Service Provider Pending Booking Queue (commit recorded after implementation).
 Previous feature checkpoint: 01f2009 (`feat: implement customer booking details`).
 Latest maintenance checkpoint before the security migration: 5b5c633 (`chore: remediate dependency and runtime issues`).
 Security migration base: e783437 (`feat: implement customer booking cancellation`).
-Latest verified checkpoint before development-dependency review: 2c5f2d7 (`chore: migrate to patched Next.js 16`).
-Current maintenance checkpoint: development dependency advisory review (see Section 16).
+Latest verified pre-feature checkpoint: b6a16dd (`chore: remediate development dependency vulnerabilities`).
+Current feature checkpoint: Phase 4C.5 — Service Provider Pending Booking Queue.
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -52,7 +52,8 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Phase 4C.2 — Booking Listing | COMPLETE (PostgreSQL connectivity not verified) |
 | Phase 4C.3 — Customer Booking Details | COMPLETE (build verified; PostgreSQL connectivity not verified) |
 | Phase 4C.4 — Customer Booking Cancellation | COMPLETE (migration added; live database not verified) |
-| Remaining Phase 4C — Booking Management | NOT STARTED |
+| Phase 4C.5 — Service Provider Pending Booking Queue | COMPLETE (mock-tested; PostgreSQL connectivity not verified) |
+| Remaining Phase 4C.6+ — Booking Management | NOT STARTED |
 | Phase 5 — Service Records & Parts | NOT STARTED |
 | Phase 6 — Invoicing | NOT STARTED |
 | Phase 7 — Reviews & Ratings | NOT STARTED |
@@ -122,7 +123,7 @@ RBAC / ownership checks (middleware + API routes)
 - `lib/auth/jwt.ts` — `signToken`, `verifyToken`, `JWTPayload`
 - `lib/auth/session.ts` — `getCurrentUserFromHeaders`, `UserRole` enum, cookie operations
 - `lib/auth/actions.ts` — `loginUser`, `logoutUser` Server Actions
-- `middleware.ts` — Route guarding: `/dashboard/admin` → ADMIN only, `/dashboard/provider` → SERVICE_PROVIDER/ADMIN, `/dashboard/customer` → CUSTOMER/FLEET_MANAGER/ADMIN
+- `proxy.ts` — Route guarding: `/dashboard/admin` → ADMIN only, `/dashboard/provider` → SERVICE_PROVIDER/ADMIN, `/dashboard/customer` → CUSTOMER/FLEET_MANAGER/ADMIN
 - `lib/auth/permissions.ts` — `checkRole`, `verifyVehicleOwnership` server-side helpers
 
 **RBAC roles**: CUSTOMER, SERVICE_PROVIDER, FLEET_MANAGER, ADMIN
@@ -135,7 +136,7 @@ RBAC / ownership checks (middleware + API routes)
 - bcrypt password hashing (10,000 PBKDF2 iterations)
 - JWT access tokens with expiration
 - Secure HTTP-only cookies (`apex_session`)
-- Role-based middleware protection
+- Role-based Proxy protection
 - Server-side ownership verification
 - Password reset token flow (placeholder)
 
@@ -181,7 +182,7 @@ RBAC / ownership checks (middleware + API routes)
 **Service center view/edit** for admin-only access:
 
 - **Service center view** — `/dashboard/admin/service-center` — displays current service center information
-- **Admin-only access** — middleware enforces ADMIN role
+- **Admin-only access** — Proxy enforces ADMIN role
 - **Reuse existing `service_center` schema** — no redesign needed
 
 **Key implementation**:
@@ -216,7 +217,7 @@ CREATE TABLE service_center (
 **Mechanic listing** for admin-only access:
 
 - **Mechanic listing** — `/dashboard/admin/mechanics` — displays mechanic list
-- **Admin-only access** — middleware enforces ADMIN role
+- **Admin-only access** — Proxy enforces ADMIN role
 - **Service-center association** — mechanics linked to existing service center via `service_center_id`
 
 **Key implementation**:
@@ -245,7 +246,7 @@ CREATE TABLE mechanics (
 **Current functionality**:
 - Mechanic listing displays name, specialization, phone, status
 - "Add Mechanic" link navigates to create flow
-- Admin authorization enforced via middleware
+- Admin authorization enforced via Proxy
 - Service center association preserved
 
 **lib/db.ts mechanic methods**:
@@ -453,11 +454,12 @@ if invalid → redirect to /login
 /dashboard routes (protected, auth required)
 ──────────────────────────────────────────────
 /dashboard       — Dashboard redirect (role-based)
-/dashboard/admin — ADMIN only (middleware)
+/dashboard/admin — ADMIN only (Proxy)
   ├── /service-center — Service center management
   └── /mechanics — Mechanic management
 /dashboard/provider — SERVICE_PROVIDER or ADMIN
   — Provider dashboard (vehicle/service management)
+  └── /bookings — read-only PENDING queue (Phase 4C.5; server role check)
 /dashboard/customer — CUSTOMER or FLEET_MANAGER
   ├── /vehicles — vehicle management
   └── /bookings
@@ -467,7 +469,7 @@ if invalid → redirect to /login
 
 **Protected routes**: All `/dashboard/*` routes require authentication and valid role.
 
-**Route guards** (middleware.ts):
+**Route guards** (`proxy.ts`):
 - No `apex_session` cookie → redirect to `/login`
 - Invalid token → redirect to `/login`
 - Wrong role for route → redirect to `/dashboard`
@@ -537,7 +539,7 @@ if invalid → redirect to /login
 ```
 
 - **Mechanic availability** — NOT STARTED — No availability tracking or scheduling system
-- **Remaining booking lifecycle management** — NOT STARTED — Creation, listing, details, and customer cancellation are implemented; editing, rescheduling, confirmation/rejection, staff management, and other transitions are not implemented
+- **Remaining booking lifecycle management** — NOT STARTED — Customer creation/listing/details/cancellation and the provider pending queue are implemented; confirmation/rejection, editing/rescheduling, and other transitions are not implemented
 - **Appointment scheduling** — NOT STARTED — No calendar/availability slot system
 - **Mechanic assignment** — NOT STARTED — No mechanism to assign mechanics to bookings
 - **Service records** — NOT STARTED — No service execution tracking beyond basic bookings
@@ -568,7 +570,7 @@ PLANNED        — In roadmap but not started
 ## CURRENT STOP POINT
 ```
 
-Development is stopped after **Phase 4C.4 — Customer Booking Cancellation**.
+Development is stopped after **Phase 4C.5 — Service Provider Pending Booking Queue**.
 
 - Customers can submit a new booking request for their own vehicle and an existing service type. Requests are created with `PENDING` status.
 - Booking creation uses Prisma against PostgreSQL. The legacy user, vehicle, service-center, and mechanic methods in `lib/db.ts` remain mock placeholders; booking creation itself is not in-memory.
@@ -578,12 +580,14 @@ Development is stopped after **Phase 4C.4 — Customer Booking Cancellation**.
 - Booking listing has empty, loading, and safe error states.
 - Customers can cancel only their own `PENDING` booking. The details page asks for confirmation and hides the control after status changes. Confirmed, in-progress, completed, invoiced, and already cancelled bookings cannot be cancelled through this operation.
 - Cancellation checks session and customer/fleet-manager role server-side. A single conditional update matches booking ID, session customer ID, and `PENDING` status, then writes `CANCELLED`. Missing or non-pending bookings receive safe results; the client cannot supply customer ID or target status.
+- Service providers and admins can view the read-only `/dashboard/provider/bookings` queue. The server page verifies the signed session and allowlists these two roles; the booking service repeats the role check. Prisma filters `PENDING` in the database and selects only booking ID/status/dates, customer name, vehicle make/model/plate, and service name, ordered newest first. The UI has loading, empty, and safe error states; it offers no booking actions.
+- Queue tests use an in-memory repository and verify both allowed roles, forbidden roles, unauthenticated access, database-side pending filter, empty/error states, and safe selected fields. They do not prove live persistence.
 - `CANCELLED` was added to `database/schema.sql` and `prisma/schema.prisma`. Existing databases require applying `database/migrations/20261009_add_cancelled_booking_status.sql`; it was not applied because no real `DATABASE_URL` is configured.
-- Other booking lifecycle and provider-management features remain NOT STARTED.
+- Booking approval/rejection, editing/rescheduling, mechanic assignment, and other lifecycle features remain NOT STARTED.
 - A future session must NOT automatically begin Phase 4C or any other feature.
 - Wait for explicit instructions from the user before implementing the next task.
 
-Latest maintenance commit: **`5b5c633`** — `chore: remediate dependency and runtime issues`. Latest feature commit: **`feat: implement customer booking cancellation`** (current handoff commit on `main`).
+Latest pre-feature maintenance checkpoint: **`b6a16dd`** — `chore: remediate development dependency vulnerabilities`. Current feature checkpoint: **Phase 4C.5 — Service Provider Pending Booking Queue** (see current Git commit on `main`).
 
 Verification history:
 - Focused booking tests: 18 passed with Node's built-in test runner, covering creation, listing, ownership, not found, and safe database errors.
@@ -593,6 +597,7 @@ Verification history:
 - Stage 1 maintenance verification: 5 JWT tests passed for valid and legacy-format HS256 tokens, modified signatures, expiration, and malformed tokens. The combined maintenance booking/JWT tests passed 23/23.
 - Phase 4C.4 verification: `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 35/35 tests, including all cancellation eligibility, ownership, input, error, and simulated concurrency cases. These are unit tests with an in-memory fake repository, not PostgreSQL integration tests.
 - Phase 4C.4 TypeScript: `npx tsc --noEmit` passed. Lint: `npm run lint` passed. Production build: `npm run build` passed.
+- Phase 4C.5 verification: `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0, `/dashboard/provider/bookings` emitted as a dynamic route); `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 44/44. Queue tests use mocked repositories; PostgreSQL connectivity remains unverified because `DATABASE_URL` and `.env` are absent.
 - Previous checkpoint audit: findings were reduced from 19 to 1 critical Next.js package entry; this historical result was superseded by the Next.js 16 migration documented in Section 16.
 - PostgreSQL: connection not attempted because neither the process environment nor a local `.env` contains `DATABASE_URL`. Configure `DATABASE_URL` with the actual PostgreSQL username, password, host, port, database name, and `?schema=public`; no credentials were created or printed.
 
@@ -613,7 +618,10 @@ Phase 4C.3 — Customer Booking Details — COMPLETE (build verified; database c
 Phase 4C.4 — Customer Booking Cancellation — COMPLETE (migration added; database connection not verified)
   • Customer/fleet manager may cancel only their own PENDING booking; atomic conditional update writes CANCELLED
   • Forward migration: database/migrations/20261009_add_cancelled_booking_status.sql (not applied to a live database)
-Phase 4C remaining — Lifecycle, availability, and provider appointment management — NOT STARTED
+Phase 4C.5 — Service Provider Pending Booking Queue — COMPLETE (PostgreSQL connectivity not verified)
+  • Read-only server-rendered pending queue; only SERVICE_PROVIDER and ADMIN are authorized
+  • Prisma filters PENDING in the database and selects minimal booking/customer/vehicle/service fields
+Phase 4C.6+ — Booking lifecycle and appointment management — NOT STARTED
 
 Phase 5 — Service Records & Parts — NOT STARTED
   • Service execution recording

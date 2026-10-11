@@ -106,6 +106,20 @@ export const db = {
     async findPendingProviderBookings(query: ProviderPendingBookingsQuery) {
       return prisma.booking.findMany(query)
     },
+    async confirmPendingForProvider(bookingId: number) {
+      const result = await prisma.booking.updateMany({
+        where: { id: bookingId, status: 'PENDING' },
+        data: { status: 'CONFIRMED' },
+      })
+      return result.count
+    },
+    async findStatusById(bookingId: number) {
+      const booking = await prisma.booking.findUnique({
+        where: { id: bookingId },
+        select: { status: true },
+      })
+      return booking?.status ?? null
+    },
     async cancelPendingForCustomer(bookingId: number, customerId: number) {
       const result = await prisma.booking.updateMany({
         where: { id: bookingId, customerId, status: 'PENDING' },

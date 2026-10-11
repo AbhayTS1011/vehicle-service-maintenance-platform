@@ -103,6 +103,61 @@ export type BookingCancellationRepository = {
   findStatusForCustomer: (bookingId: number, customerId: number) => Promise<string | null>
 }
 
+export type ProviderBookingConfirmationResult =
+  | { success: true }
+  | {
+      success: false
+      reason: 'unauthenticated' | 'forbidden' | 'invalid_input' | 'not_found' | 'invalid_state' | 'error'
+      error: string
+    }
+
+export type ProviderBookingConfirmationRepository = {
+  confirmPending: (bookingId: number) => Promise<number>
+  findStatus: (bookingId: number) => Promise<string | null>
+}
+
+export async function confirmProviderBooking(
+  actor: BookingActor,
+  input: unknown,
+  repository: ProviderBookingConfirmationRepository,
+): Promise<ProviderBookingConfirmationResult> {
+  if (!actor || !Number.isSafeInteger(actor.id) || actor.id <= 0) {
+    return { success: false, reason: 'unauthenticated', error: 'Please sign in to confirm a booking.' }
+  }
+  if (actor.role !== UserRole.SERVICE_PROVIDER && actor.role !== UserRole.ADMIN) {
+    return { success: false, reason: 'forbidden', error: 'You do not have permission to confirm bookings.' }
+  }
+
+  const bookingId = typeof input === 'number'
+    ? input
+    : typeof input === 'string' && /^\d+$/.test(input)
+      ? Number(input)
+      : Number.NaN
+  if (!Number.isSafeInteger(bookingId) || bookingId <= 0) {
+    return { success: false, reason: 'invalid_input', error: 'Choose a valid booking to confirm.' }
+  }
+
+  try {
+    const updated = await repository.confirmPending(bookingId)
+    if (updated === 1) return { success: true }
+    if (updated !== 0) {
+      return { success: false, reason: 'error', error: 'The booking could not be confirmed. Please try again.' }
+    }
+
+    const currentStatus = await repository.findStatus(bookingId)
+    if (currentStatus === null) {
+      return { success: false, reason: 'not_found', error: 'Booking not found.' }
+    }
+    return {
+      success: false,
+      reason: 'invalid_state',
+      error: 'Only pending bookings can be confirmed. Refresh the queue and try again.',
+    }
+  } catch {
+    return { success: false, reason: 'error', error: 'The booking could not be confirmed. Please try again.' }
+  }
+}
+
 export async function listCustomerBookings(
   actor: BookingActor,
   repository: { findForCustomer: (customerId: number) => Promise<CustomerBookingSummary[]> },

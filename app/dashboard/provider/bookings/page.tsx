@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { verifyToken } from '@/lib/auth/jwt'
 import { listProviderPendingBookings } from '@/lib/booking/booking-service'
+import { ConfirmBookingForm } from './ConfirmBookingForm'
 
 const dateTime = new Intl.DateTimeFormat('en-IN', {
   dateStyle: 'medium',
@@ -44,7 +45,7 @@ export default async function ProviderBookingsPage() {
             <table aria-label="Pending service bookings" style={{ width: '100%', borderCollapse: 'collapse', minWidth: '850px' }}>
               <thead>
                 <tr>
-                  {['Reference', 'Customer', 'Vehicle', 'Service', 'Requested for', 'Received', 'Status'].map((heading) => (
+                  {['Reference', 'Customer', 'Vehicle', 'Service', 'Requested for', 'Received', 'Status', 'Action'].map((heading) => (
                     <th key={heading} scope="col" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid #475569', color: '#cbd5e1' }}>
                       {heading}
                     </th>
@@ -64,6 +65,9 @@ export default async function ProviderBookingsPage() {
                     <td style={{ padding: '0.75rem', borderBottom: '1px solid #334155' }}>{dateTime.format(booking.createdAt)}</td>
                     <td style={{ padding: '0.75rem', borderBottom: '1px solid #334155' }}>
                       {booking.status === BookingStatus.PENDING ? 'Pending' : booking.status.replaceAll('_', ' ')}
+                    </td>
+                    <td style={{ padding: '0.75rem', borderBottom: '1px solid #334155' }}>
+                      <ConfirmBookingForm bookingId={booking.id} />
                     </td>
                   </tr>
                 ))}

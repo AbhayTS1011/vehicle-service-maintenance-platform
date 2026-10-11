@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { UserRole } from '@prisma/client'
 import { db } from '@/lib/db'
 import { verifyToken } from '@/lib/auth/jwt'
-import { confirmProviderBooking, rejectProviderBooking } from '@/lib/booking/booking-service'
+import { confirmProviderBooking, rejectProviderBooking, startProviderBooking } from '@/lib/booking/booking-service'
 
 export async function confirmBooking(formData: FormData) {
   const token = (await cookies()).get('apex_session')?.value
@@ -34,5 +34,23 @@ export async function rejectBooking(formData: FormData) {
   })
 
   if (result.success) revalidatePath('/dashboard/provider/bookings')
+  return result
+}
+
+export async function startService(formData: FormData) {
+  const token = (await cookies()).get('apex_session')?.value
+  const payload = token ? await verifyToken(token) : null
+  const role = payload?.role as UserRole | undefined
+  const actor = payload?.userId && role ? { id: payload.userId, role } : null
+
+  const result = await startProviderBooking(actor, formData.get('bookingId'), {
+    startConfirmed: (bookingId) => db.booking.startConfirmedForProvider(bookingId),
+    findStatus: (bookingId) => db.booking.findStatusById(bookingId),
+  })
+
+  if (result.success) {
+    revalidatePath('/dashboard/provider/bookings/confirmed')
+    revalidatePath('/dashboard/provider/bookings')
+  }
   return result
 }

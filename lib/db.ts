@@ -7,7 +7,7 @@
 // Data is lost on server restart - suitable for Phase 3 & 4 vehicle/service center management
 
 import { BookingStatus, PrismaClient } from '@prisma/client'
-import type { ProviderPendingBookingsQuery } from './booking/booking-service'
+import type { ProviderConfirmedBookingsQuery, ProviderPendingBookingsQuery } from './booking/booking-service'
 
 const prisma = new PrismaClient()
 
@@ -106,6 +106,9 @@ export const db = {
     async findPendingProviderBookings(query: ProviderPendingBookingsQuery) {
       return prisma.booking.findMany(query)
     },
+    async findConfirmedProviderBookings(query: ProviderConfirmedBookingsQuery) {
+      return prisma.booking.findMany(query)
+    },
     async confirmPendingForProvider(bookingId: number) {
       const result = await prisma.booking.updateMany({
         where: { id: bookingId, status: 'PENDING' },
@@ -117,6 +120,13 @@ export const db = {
       const result = await prisma.booking.updateMany({
         where: { id: bookingId, status: BookingStatus.PENDING },
         data: { status: BookingStatus.REJECTED },
+      })
+      return result.count
+    },
+    async startConfirmedForProvider(bookingId: number) {
+      const result = await prisma.booking.updateMany({
+        where: { id: bookingId, status: BookingStatus.CONFIRMED },
+        data: { status: BookingStatus.IN_PROGRESS },
       })
       return result.count
     },

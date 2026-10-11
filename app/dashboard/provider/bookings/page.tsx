@@ -36,6 +36,11 @@ export default async function ProviderBookingsPage() {
         <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
           Review customer requests that are waiting for service center review.
         </p>
+        <p style={{ marginBottom: '1.5rem' }}>
+          <a href="/dashboard/provider/bookings/confirmed" style={{ color: '#93c5fd' }}>
+            View confirmed bookings
+          </a>
+        </p>
 
         {!result.success ? (
           <p role="alert">{result.error}</p>

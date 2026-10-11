@@ -21,12 +21,30 @@ export type ProviderPendingBooking = Prisma.BookingGetPayload<{
   select: typeof providerPendingBookingsQuery.select
 }>
 
+export const providerConfirmedBookingsQuery = {
+  ...providerPendingBookingsQuery,
+  where: { status: BookingStatus.CONFIRMED },
+} satisfies Prisma.BookingFindManyArgs
+
+export type ProviderConfirmedBookingsQuery = typeof providerConfirmedBookingsQuery
+export type ProviderConfirmedBooking = Prisma.BookingGetPayload<{
+  select: typeof providerConfirmedBookingsQuery.select
+}>
+
 export type ProviderPendingBookingsResult =
   | { success: true; bookings: ProviderPendingBooking[] }
   | { success: false; reason: 'unauthenticated' | 'forbidden' | 'error'; error: string }
 
 export type ProviderPendingBookingsRepository = {
   findPending: (query: ProviderPendingBookingsQuery) => Promise<ProviderPendingBooking[]>
+}
+
+export type ProviderConfirmedBookingsResult =
+  | { success: true; bookings: ProviderConfirmedBooking[] }
+  | { success: false; reason: 'unauthenticated' | 'forbidden' | 'error'; error: string }
+
+export type ProviderConfirmedBookingsRepository = {
+  findConfirmed: (query: ProviderConfirmedBookingsQuery) => Promise<ProviderConfirmedBooking[]>
 }
 
 export async function listProviderPendingBookings(
@@ -48,6 +66,29 @@ export async function listProviderPendingBookings(
       success: false,
       reason: 'error',
       error: 'Pending service requests could not be loaded. Please try again.',
+    }
+  }
+}
+
+export async function listProviderConfirmedBookings(
+  actor: BookingActor,
+  repository: ProviderConfirmedBookingsRepository,
+): Promise<ProviderConfirmedBookingsResult> {
+  if (!actor || !Number.isSafeInteger(actor.id) || actor.id <= 0) {
+    return { success: false, reason: 'unauthenticated', error: 'Please sign in to view confirmed bookings.' }
+  }
+  if (actor.role !== UserRole.SERVICE_PROVIDER && actor.role !== UserRole.ADMIN) {
+    return { success: false, reason: 'forbidden', error: 'You do not have permission to view confirmed bookings.' }
+  }
+
+  try {
+    const bookings = await repository.findConfirmed(providerConfirmedBookingsQuery)
+    return { success: true, bookings }
+  } catch {
+    return {
+      success: false,
+      reason: 'error',
+      error: 'Confirmed bookings could not be loaded. Please try again.',
     }
   }
 }
@@ -210,6 +251,61 @@ export async function rejectProviderBooking(
     }
   } catch {
     return { success: false, reason: 'error', error: 'The booking could not be rejected. Please try again.' }
+  }
+}
+
+export type ProviderBookingStartResult =
+  | { success: true }
+  | {
+      success: false
+      reason: 'unauthenticated' | 'forbidden' | 'invalid_input' | 'not_found' | 'invalid_state' | 'error'
+      error: string
+    }
+
+export type ProviderBookingStartRepository = {
+  startConfirmed: (bookingId: number) => Promise<number>
+  findStatus: (bookingId: number) => Promise<string | null>
+}
+
+export async function startProviderBooking(
+  actor: BookingActor,
+  input: unknown,
+  repository: ProviderBookingStartRepository,
+): Promise<ProviderBookingStartResult> {
+  if (!actor || !Number.isSafeInteger(actor.id) || actor.id <= 0) {
+    return { success: false, reason: 'unauthenticated', error: 'Please sign in to start service.' }
+  }
+  if (actor.role !== UserRole.SERVICE_PROVIDER && actor.role !== UserRole.ADMIN) {
+    return { success: false, reason: 'forbidden', error: 'You do not have permission to start service.' }
+  }
+
+  const bookingId = typeof input === 'number'
+    ? input
+    : typeof input === 'string' && /^\d+$/.test(input)
+      ? Number(input)
+      : Number.NaN
+  if (!Number.isSafeInteger(bookingId) || bookingId <= 0) {
+    return { success: false, reason: 'invalid_input', error: 'Choose a valid booking to start.' }
+  }
+
+  try {
+    const updated = await repository.startConfirmed(bookingId)
+    if (updated === 1) return { success: true }
+    if (updated !== 0) {
+      return { success: false, reason: 'error', error: 'Service could not be started. Please try again.' }
+    }
+
+    const currentStatus = await repository.findStatus(bookingId)
+    if (currentStatus === null) {
+      return { success: false, reason: 'not_found', error: 'Booking not found.' }
+    }
+    return {
+      success: false,
+      reason: 'invalid_state',
+      error: 'Only confirmed bookings can be started. Refresh the list and try again.',
+    }
+  } catch {
+    return { success: false, reason: 'error', error: 'Service could not be started. Please try again.' }
   }
 }
 

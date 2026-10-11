@@ -27,6 +27,7 @@ enum BookingStatus {
   COMPLETED
   INVOICED
   CANCELLED
+  REJECTED
 
   @@map("booking_status")
 }

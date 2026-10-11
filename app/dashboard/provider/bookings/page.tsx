@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { verifyToken } from '@/lib/auth/jwt'
 import { listProviderPendingBookings } from '@/lib/booking/booking-service'
 import { ConfirmBookingForm } from './ConfirmBookingForm'
+import { RejectBookingForm } from './RejectBookingForm'
 
 const dateTime = new Intl.DateTimeFormat('en-IN', {
   dateStyle: 'medium',
@@ -68,6 +69,9 @@ export default async function ProviderBookingsPage() {
                     </td>
                     <td style={{ padding: '0.75rem', borderBottom: '1px solid #334155' }}>
                       <ConfirmBookingForm bookingId={booking.id} />
+                      <div style={{ marginTop: '0.5rem' }}>
+                        <RejectBookingForm bookingId={booking.id} />
+                      </div>
                     </td>
                   </tr>
                 ))}

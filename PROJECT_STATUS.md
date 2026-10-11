@@ -25,10 +25,10 @@ The platform manages the complete vehicle-service lifecycle for a single service
 
 ```text
 Branch: main
-Latest completed feature checkpoint: Phase 4C.6 — Provider Confirms a Pending Booking (recorded in the current `main` commit).
-Previous feature checkpoint: f1ccbe6 (`feat: implement provider pending booking queue`).
-Latest verified pre-feature checkpoint: f1ccbe6 (`feat: implement provider pending booking queue`).
-Current feature checkpoint: Phase 4C.6 — Provider Confirms a Pending Booking.
+Latest completed feature checkpoint: Phase 4C.7 — Provider Rejects a Pending Booking (recorded in the current `main` commit).
+Previous feature checkpoint: 20563ea (`feat: implement provider booking confirmation`).
+Latest verified pre-feature checkpoint: 20563ea (`feat: implement provider booking confirmation`).
+Current feature checkpoint: Phase 4C.7 — Provider Rejects a Pending Booking.
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -52,7 +52,8 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Phase 4C.4 — Customer Booking Cancellation | COMPLETE (migration added; live database not verified) |
 | Phase 4C.5 — Service Provider Pending Booking Queue | COMPLETE (mock-tested; PostgreSQL connectivity not verified) |
 | Phase 4C.6 — Provider Booking Confirmation | COMPLETE (mock-tested; PostgreSQL connectivity not verified) |
-| Remaining Phase 4C.7+ — Booking Management | NOT STARTED |
+| Phase 4C.7 — Provider Booking Rejection | COMPLETE (mock-tested; PostgreSQL connectivity not verified; migration added) |
+| Remaining Phase 4C.8+ — Booking Management | NOT STARTED |
 | Phase 5 — Service Records & Parts | NOT STARTED |
 | Phase 6 — Invoicing | NOT STARTED |
 | Phase 7 — Reviews & Ratings | NOT STARTED |
@@ -538,7 +539,7 @@ if invalid → redirect to /login
 ```
 
 - **Mechanic availability** — NOT STARTED — No availability tracking or scheduling system
-- **Remaining booking lifecycle management** — NOT STARTED — Customer creation/listing/details/cancellation and the provider pending queue are implemented; confirmation/rejection, editing/rescheduling, and other transitions are not implemented
+- **Remaining booking lifecycle management** — NOT STARTED — Customer creation/listing/details/cancellation and provider queue/confirmation/rejection are implemented; editing/rescheduling and other transitions are not implemented
 - **Appointment scheduling** — NOT STARTED — No calendar/availability slot system
 - **Mechanic assignment** — NOT STARTED — No mechanism to assign mechanics to bookings
 - **Service records** — NOT STARTED — No service execution tracking beyond basic bookings
@@ -569,7 +570,7 @@ PLANNED        — In roadmap but not started
 ## CURRENT STOP POINT
 ```
 
-Development is stopped after **Phase 4C.6 — Provider Confirms a Pending Booking**.
+Development is stopped after **Phase 4C.7 — Provider Rejects a Pending Booking**.
 
 - Customers can submit a new booking request for their own vehicle and an existing service type. Requests are created with `PENDING` status.
 - Booking creation uses Prisma against PostgreSQL. The legacy user, vehicle, service-center, and mechanic methods in `lib/db.ts` remain mock placeholders; booking creation itself is not in-memory.
@@ -583,12 +584,14 @@ Development is stopped after **Phase 4C.6 — Provider Confirms a Pending Bookin
 - Queue tests use an in-memory repository and verify both allowed roles, forbidden roles, unauthenticated access, database-side pending filter, empty/error states, and safe selected fields. They do not prove live persistence.
 - Service providers and admins can confirm a pending booking from the provider queue. A Server Action verifies the signed session; the booking service repeats the role and input checks. Prisma atomically updates only the matching booking ID still in `PENDING` to `CONFIRMED`; an unsuccessful conditional update checks current existence/status to distinguish not-found from stale/non-pending state. The queue is revalidated and refreshed after success.
 - Confirmation tests cover both allowed roles, unauthenticated/CUSTOMER/FLEET_MANAGER denial, invalid IDs, nonexistent/non-pending bookings, concurrent stale requests, and safe database errors. They use an in-memory repository and do not prove live PostgreSQL persistence.
-- `CANCELLED` was added to `database/schema.sql` and `prisma/schema.prisma`. Existing databases require applying `database/migrations/20261009_add_cancelled_booking_status.sql`; it was not applied because no real `DATABASE_URL` is configured.
-- Booking rejection, editing/rescheduling, mechanic assignment, and other lifecycle features remain NOT STARTED.
-- A future session must NOT automatically begin Phase 4C.7 or any other feature.
+- Service providers and admins can reject a pending booking from the same queue. The separate Server Action re-verifies the signed session, and the booking service enforces role and input validation. Prisma conditionally updates only an ID still in `PENDING` to `REJECTED`; missing and stale/non-pending states and database errors return safe results. Successful rejection revalidates and refreshes the queue.
+- Rejection tests cover both allowed roles, denied roles, invalid/missing/non-pending bookings, concurrent requests, and safe DB errors. They verify rejection uses `REJECTED` and does not use `CANCELLED`; tests use mocks, not live PostgreSQL.
+- `CANCELLED` and `REJECTED` are distinct booking statuses in `database/schema.sql` and `prisma/schema.prisma`. Existing databases must apply `database/migrations/20261009_add_cancelled_booking_status.sql` and `database/migrations/20261011_add_rejected_booking_status.sql` before deploying code that writes those statuses. Neither migration was applied because no real `DATABASE_URL` is configured.
+- Booking editing/rescheduling, mechanic assignment, and other lifecycle features remain NOT STARTED.
+- A future session must NOT automatically begin Phase 4C.8 or any other feature.
 - Wait for explicit instructions from the user before implementing the next task.
 
-Previous feature checkpoint: **`f1ccbe6`** — `feat: implement provider pending booking queue`. Current feature checkpoint: **Phase 4C.6 — Provider Confirms a Pending Booking** (recorded in the current Git commit on `main`).
+Previous feature checkpoint: **`20563ea`** — `feat: implement provider booking confirmation`. Current feature checkpoint: **Phase 4C.7 — Provider Rejects a Pending Booking** (recorded in the current Git commit on `main`).
 
 Verification history:
 - Focused booking tests: 18 passed with Node's built-in test runner, covering creation, listing, ownership, not found, and safe database errors.
@@ -600,6 +603,7 @@ Verification history:
 - Phase 4C.4 TypeScript: `npx tsc --noEmit` passed. Lint: `npm run lint` passed. Production build: `npm run build` passed.
 - Phase 4C.5 verification: `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0, `/dashboard/provider/bookings` emitted as a dynamic route); `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 44/44. Queue tests use mocked repositories; PostgreSQL connectivity remains unverified because `DATABASE_URL` and `.env` are absent.
 - Phase 4C.6 verification (2026-10-11): `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0, provider bookings route emitted as dynamic); `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 54/54. Build needed elevated filesystem access to create the Prisma junction under `.next`. Tests use mocked repositories; PostgreSQL connectivity remains unverified because `DATABASE_URL` and `.env` are absent. The development-only GHSA-vfj7-8cjw-p6xm advisory described in Section 16 remains outstanding.
+- Phase 4C.7 verification (2026-10-11): `npx prisma generate` passed; `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0; `/dashboard/provider/bookings` emitted as dynamic). The unprivileged build attempt hit the Windows Prisma-junction permission error; the elevated retry passed. `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 64/64, including rejection and existing confirmation/cancellation regression tests. Unit tests use mocked repositories; PostgreSQL connectivity remains unverified because `DATABASE_URL` is unset and `.env` is absent. The development-only GHSA-vfj7-8cjw-p6xm advisory described in Section 16 remains outstanding.
 - Previous checkpoint audit: findings were reduced from 19 to 1 critical Next.js package entry; this historical result was superseded by the Next.js 16 migration documented in Section 16.
 - PostgreSQL: connection not attempted because neither the process environment nor a local `.env` contains `DATABASE_URL`. Configure `DATABASE_URL` with the actual PostgreSQL username, password, host, port, database name, and `?schema=public`; no credentials were created or printed.
 
@@ -626,7 +630,11 @@ Phase 4C.5 — Service Provider Pending Booking Queue — COMPLETE (PostgreSQL c
 Phase 4C.6 — Provider Booking Confirmation — COMPLETE (PostgreSQL connectivity not verified)
   • SERVICE_PROVIDER and ADMIN can confirm a PENDING booking via a server-authorized action
   • Atomic Prisma update transitions only a still-PENDING booking to CONFIRMED; stale/concurrent requests cannot transition it twice
-Phase 4C.7+ — Booking lifecycle and appointment management — NOT STARTED
+Phase 4C.7 — Provider Booking Rejection — COMPLETE (PostgreSQL connectivity not verified)
+  • SERVICE_PROVIDER and ADMIN can reject a PENDING booking via a server-authorized action
+  • Atomic Prisma update sets REJECTED only when the booking remains PENDING; customer cancellation still writes CANCELLED
+  • Forward enum migration: database/migrations/20261011_add_rejected_booking_status.sql (not applied to a live database)
+Phase 4C.8+ — Booking lifecycle and appointment management — NOT STARTED
 
 Phase 5 — Service Records & Parts — NOT STARTED
   • Service execution recording
@@ -732,7 +740,7 @@ All schemas, functions, triggers, views, and indexes are defined in `database/*.
 Explicit PostgreSQL transactions with row-level locking (`SELECT ... FOR UPDATE`) for high-contention operations (mechanic assignment, inventory deduction). Prevents race conditions at the database level.
 
 ### Workflow State Machine
-Booking workflow: `PENDING → CONFIRMED → IN_PROGRESS → COMPLETED → INVOICED`, with `PENDING → CANCELLED` as a separate terminal customer outcome. The customer cancellation operation enforces ownership and the `PENDING` source state with an atomic conditional update; other lifecycle actions remain unimplemented.
+Booking workflow: `PENDING → CONFIRMED → IN_PROGRESS → COMPLETED → INVOICED`, with `PENDING → CANCELLED` as a separate terminal customer outcome and `PENDING → REJECTED` as a separate terminal provider outcome. Confirmation, customer cancellation, and provider rejection enforce their source state with atomic conditional updates; editing/rescheduling and other transitions remain unimplemented.
 
 ### Authentication
 Stateless authentication using JWT (signed via `jose`), password hashing with `bcrypt`, and secure HTTP-only cookies. Never trust client-supplied roles; enforce strict server-side authorization checks.

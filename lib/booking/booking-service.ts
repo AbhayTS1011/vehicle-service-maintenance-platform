@@ -158,6 +158,61 @@ export async function confirmProviderBooking(
   }
 }
 
+export type ProviderBookingRejectionResult =
+  | { success: true }
+  | {
+      success: false
+      reason: 'unauthenticated' | 'forbidden' | 'invalid_input' | 'not_found' | 'invalid_state' | 'error'
+      error: string
+    }
+
+export type ProviderBookingRejectionRepository = {
+  rejectPending: (bookingId: number) => Promise<number>
+  findStatus: (bookingId: number) => Promise<string | null>
+}
+
+export async function rejectProviderBooking(
+  actor: BookingActor,
+  input: unknown,
+  repository: ProviderBookingRejectionRepository,
+): Promise<ProviderBookingRejectionResult> {
+  if (!actor || !Number.isSafeInteger(actor.id) || actor.id <= 0) {
+    return { success: false, reason: 'unauthenticated', error: 'Please sign in to reject a booking.' }
+  }
+  if (actor.role !== UserRole.SERVICE_PROVIDER && actor.role !== UserRole.ADMIN) {
+    return { success: false, reason: 'forbidden', error: 'You do not have permission to reject bookings.' }
+  }
+
+  const bookingId = typeof input === 'number'
+    ? input
+    : typeof input === 'string' && /^\d+$/.test(input)
+      ? Number(input)
+      : Number.NaN
+  if (!Number.isSafeInteger(bookingId) || bookingId <= 0) {
+    return { success: false, reason: 'invalid_input', error: 'Choose a valid booking to reject.' }
+  }
+
+  try {
+    const updated = await repository.rejectPending(bookingId)
+    if (updated === 1) return { success: true }
+    if (updated !== 0) {
+      return { success: false, reason: 'error', error: 'The booking could not be rejected. Please try again.' }
+    }
+
+    const currentStatus = await repository.findStatus(bookingId)
+    if (currentStatus === null) {
+      return { success: false, reason: 'not_found', error: 'Booking not found.' }
+    }
+    return {
+      success: false,
+      reason: 'invalid_state',
+      error: 'Only pending bookings can be rejected. Refresh the queue and try again.',
+    }
+  } catch {
+    return { success: false, reason: 'error', error: 'The booking could not be rejected. Please try again.' }
+  }
+}
+
 export async function listCustomerBookings(
   actor: BookingActor,
   repository: { findForCustomer: (customerId: number) => Promise<CustomerBookingSummary[]> },

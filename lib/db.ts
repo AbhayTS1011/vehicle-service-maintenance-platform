@@ -6,7 +6,7 @@
 // In-memory store for development and testing
 // Data is lost on server restart - suitable for Phase 3 & 4 vehicle/service center management
 
-import { PrismaClient } from '@prisma/client'
+import { BookingStatus, PrismaClient } from '@prisma/client'
 import type { ProviderPendingBookingsQuery } from './booking/booking-service'
 
 const prisma = new PrismaClient()
@@ -110,6 +110,13 @@ export const db = {
       const result = await prisma.booking.updateMany({
         where: { id: bookingId, status: 'PENDING' },
         data: { status: 'CONFIRMED' },
+      })
+      return result.count
+    },
+    async rejectPendingForProvider(bookingId: number) {
+      const result = await prisma.booking.updateMany({
+        where: { id: bookingId, status: BookingStatus.PENDING },
+        data: { status: BookingStatus.REJECTED },
       })
       return result.count
     },

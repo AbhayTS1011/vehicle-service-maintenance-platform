@@ -40,6 +40,10 @@ export default async function ProviderConfirmedBookingsPage() {
           <a href="/dashboard/provider/bookings" style={{ color: '#93c5fd' }}>
             View pending requests
           </a>
+          {' · '}
+          <a href="/dashboard/provider/bookings/in-progress" style={{ color: '#93c5fd' }}>
+            View in-progress bookings
+          </a>
         </p>
 
         {!result.success ? (

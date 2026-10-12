@@ -46,6 +46,20 @@ export type ProviderConfirmedBooking = Prisma.BookingGetPayload<{
   select: typeof providerConfirmedBookingsQuery.select
 }>
 
+export const providerInProgressBookingsQuery = {
+  ...providerPendingBookingsQuery,
+  where: { status: BookingStatus.IN_PROGRESS },
+  select: {
+    ...providerPendingBookingsQuery.select,
+    mechanic: { select: { name: true } },
+  },
+} satisfies Prisma.BookingFindManyArgs
+
+export type ProviderInProgressBookingsQuery = typeof providerInProgressBookingsQuery
+export type ProviderInProgressBooking = Prisma.BookingGetPayload<{
+  select: typeof providerInProgressBookingsQuery.select
+}>
+
 export type ProviderPendingBookingsResult =
   | { success: true; bookings: ProviderPendingBooking[] }
   | { success: false; reason: 'unauthenticated' | 'forbidden' | 'error'; error: string }
@@ -60,6 +74,14 @@ export type ProviderConfirmedBookingsResult =
 
 export type ProviderConfirmedBookingsRepository = {
   findConfirmed: (query: ProviderConfirmedBookingsQuery) => Promise<ProviderConfirmedBooking[]>
+}
+
+export type ProviderInProgressBookingsResult =
+  | { success: true; bookings: ProviderInProgressBooking[] }
+  | { success: false; reason: 'unauthenticated' | 'forbidden' | 'error'; error: string }
+
+export type ProviderInProgressBookingsRepository = {
+  findInProgress: (query: ProviderInProgressBookingsQuery) => Promise<ProviderInProgressBooking[]>
 }
 
 export type ProviderBookingAssignmentContext = {
@@ -132,6 +154,23 @@ export async function listProviderConfirmedBookings(
       reason: 'error',
       error: 'Confirmed bookings could not be loaded. Please try again.',
     }
+  }
+}
+
+export async function listProviderInProgressBookings(
+  actor: BookingActor,
+  repository: ProviderInProgressBookingsRepository,
+): Promise<ProviderInProgressBookingsResult> {
+  if (!actor || !Number.isSafeInteger(actor.id) || actor.id <= 0) {
+    return { success: false, reason: 'unauthenticated', error: 'Please sign in to view in-progress bookings.' }
+  }
+  if (actor.role !== UserRole.SERVICE_PROVIDER && actor.role !== UserRole.ADMIN) {
+    return { success: false, reason: 'forbidden', error: 'You do not have permission to view in-progress bookings.' }
+  }
+  try {
+    return { success: true, bookings: await repository.findInProgress(providerInProgressBookingsQuery) }
+  } catch {
+    return { success: false, reason: 'error', error: 'In-progress bookings could not be loaded. Please try again.' }
   }
 }
 
@@ -520,6 +559,56 @@ export async function startProviderBooking(
     }
   } catch {
     return { success: false, reason: 'error', error: 'Service could not be started. Please try again.' }
+  }
+}
+
+export type ProviderBookingCompletionResult =
+  | { success: true }
+  | {
+      success: false
+      reason: 'unauthenticated' | 'forbidden' | 'invalid_input' | 'not_found' | 'invalid_state' | 'error'
+      error: string
+    }
+
+export type ProviderBookingCompletionRepository = {
+  completeInProgress: (bookingId: number) => Promise<number>
+  findStatus: (bookingId: number) => Promise<string | null>
+}
+
+export async function completeProviderBooking(
+  actor: BookingActor,
+  input: unknown,
+  repository: ProviderBookingCompletionRepository,
+): Promise<ProviderBookingCompletionResult> {
+  if (!actor || !Number.isSafeInteger(actor.id) || actor.id <= 0) {
+    return { success: false, reason: 'unauthenticated', error: 'Please sign in to complete service.' }
+  }
+  if (actor.role !== UserRole.SERVICE_PROVIDER && actor.role !== UserRole.ADMIN) {
+    return { success: false, reason: 'forbidden', error: 'You do not have permission to complete service.' }
+  }
+  const bookingId = typeof input === 'number'
+    ? input
+    : typeof input === 'string' && /^\d+$/.test(input)
+      ? Number(input)
+      : Number.NaN
+  if (!Number.isSafeInteger(bookingId) || bookingId <= 0) {
+    return { success: false, reason: 'invalid_input', error: 'Choose a valid booking to complete.' }
+  }
+  try {
+    const updated = await repository.completeInProgress(bookingId)
+    if (updated === 1) return { success: true }
+    if (updated !== 0) {
+      return { success: false, reason: 'error', error: 'Service could not be completed. Please try again.' }
+    }
+    const currentStatus = await repository.findStatus(bookingId)
+    if (currentStatus === null) return { success: false, reason: 'not_found', error: 'Booking not found.' }
+    return {
+      success: false,
+      reason: 'invalid_state',
+      error: 'Only in-progress bookings can be completed. Refresh the list and try again.',
+    }
+  } catch {
+    return { success: false, reason: 'error', error: 'Service could not be completed. Please try again.' }
   }
 }
 

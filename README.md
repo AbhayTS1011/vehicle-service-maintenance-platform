@@ -225,17 +225,17 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | Phase | Milestone | Status |
 | :--- | :--- | :--- |
 | **Phase 1** | Foundation & Infrastructure | ✅ Completed |
-| **Phase 2** | Authentication & Authorization | ⏳ Planned |
-| **Phase 3** | Vehicle Management | ⏳ Planned |
-| **Phase 4** | Service Center & Mechanic Management | ⏳ Planned |
-| **Phase 5** | Booking System | ⏳ Planned |
-| **Phase 6** | Service Records & Parts | ⏳ Planned |
-| **Phase 7** | Invoicing | ⏳ Planned |
-| **Phase 8** | Reviews & Ratings | ⏳ Planned |
-| **Phase 9** | Email Notification System | ⏳ Planned |
-| **Phase 10** | Admin Dashboard | ⏳ Planned |
-| **Phase 11** | Testing & Quality Assurance | ⏳ Planned |
-| **Phase 12** | Polish & Deployment | ⏳ Planned |
+| **Phase 2** | Authentication & Authorization | ✅ Completed |
+| **Phase 3** | Vehicle Management | ✅ Completed |
+| **Phase 4** | Service Center & Mechanic Management | ✅ Completed |
+| **Phase 5** | Booking System | ✅ Implemented (4C.1–4C.12; live DB verification pending) |
+| **Phase 6** | Service Records & Parts | ⏳ Not started |
+| **Phase 7** | Invoicing | ⏳ Not started |
+| **Phase 8** | Reviews & Ratings | ⏳ Not started |
+| **Phase 9** | Email Notification System | ⏳ Not started |
+| **Phase 10** | Admin Dashboard | ⏳ Not started |
+| **Phase 11** | Testing & Quality Assurance | ⏳ Not started |
+| **Phase 12** | Polish & Deployment | ⏳ Not started |
 
 ---
 

@@ -1,13 +1,10 @@
 // =====================================================================
-// Resilient Database Persistence Layer (In-Memory Only)
-// Mirrors relational schema for robust development and execution
+// Prisma persistence layer for booking workflows, with legacy mock adapters
+// retained for management domains that have not yet migrated to PostgreSQL.
 // =====================================================================
 
-// In-memory store for development and testing
-// Data is lost on server restart - suitable for Phase 3 & 4 vehicle/service center management
-
 import { BookingStatus, PrismaClient, type Prisma } from '@prisma/client'
-import type { ProviderConfirmedBookingsQuery, ProviderPendingBookingsQuery } from './booking/booking-service'
+import type { ProviderConfirmedBookingsQuery, ProviderInProgressBookingsQuery, ProviderPendingBookingsQuery } from './booking/booking-service'
 import { availableAppointmentSlots, dateInTimeZone, type ScheduledInterval, type WeeklyOpening } from './booking/scheduling'
 
 const prisma = new PrismaClient()
@@ -225,6 +222,9 @@ export const db = {
     async findConfirmedProviderBookings(query: ProviderConfirmedBookingsQuery) {
       return prisma.booking.findMany(query)
     },
+    async findInProgressProviderBookings(query: ProviderInProgressBookingsQuery) {
+      return prisma.booking.findMany(query)
+    },
     async findBookingAssignmentContext(bookingId: number) {
       return prisma.booking.findUnique({
         where: { id: bookingId },
@@ -409,6 +409,13 @@ export const db = {
       const result = await prisma.booking.updateMany({
         where: { id: bookingId, status: BookingStatus.CONFIRMED },
         data: { status: BookingStatus.IN_PROGRESS },
+      })
+      return result.count
+    },
+    async completeInProgressForProvider(bookingId: number) {
+      const result = await prisma.booking.updateMany({
+        where: { id: bookingId, status: BookingStatus.IN_PROGRESS },
+        data: { status: BookingStatus.COMPLETED },
       })
       return result.count
     },

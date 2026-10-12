@@ -24,6 +24,21 @@ export type ProviderPendingBooking = Prisma.BookingGetPayload<{
 export const providerConfirmedBookingsQuery = {
   ...providerPendingBookingsQuery,
   where: { status: BookingStatus.CONFIRMED },
+  select: {
+    ...providerPendingBookingsQuery.select,
+    mechanicId: true,
+    mechanic: { select: { id: true, name: true } },
+    serviceCenter: {
+      select: {
+        id: true,
+        mechanics: {
+          where: { isActive: true },
+          select: { id: true, name: true, specialization: true },
+          orderBy: { name: 'asc' },
+        },
+      },
+    },
+  },
 } satisfies Prisma.BookingFindManyArgs
 
 export type ProviderConfirmedBookingsQuery = typeof providerConfirmedBookingsQuery
@@ -45,6 +60,33 @@ export type ProviderConfirmedBookingsResult =
 
 export type ProviderConfirmedBookingsRepository = {
   findConfirmed: (query: ProviderConfirmedBookingsQuery) => Promise<ProviderConfirmedBooking[]>
+}
+
+export type ProviderBookingAssignmentContext = {
+  status: BookingStatus
+  mechanicId: number | null
+  serviceCenterId: number
+}
+
+export type ProviderMechanicAssignmentCandidate = {
+  id: number
+  name: string
+  isActive: boolean | null
+  serviceCenterId: number
+}
+
+export type ProviderMechanicAssignmentResult =
+  | { success: true; mechanic: { id: number; name: string } }
+  | {
+      success: false
+      reason: 'unauthenticated' | 'forbidden' | 'invalid_input' | 'not_found' | 'invalid_state' | 'already_assigned' | 'mechanic_unavailable' | 'service_center_mismatch' | 'error'
+      error: string
+    }
+
+export type ProviderMechanicAssignmentRepository = {
+  findBookingContext: (bookingId: number) => Promise<ProviderBookingAssignmentContext | null>
+  findMechanic: (mechanicId: number) => Promise<ProviderMechanicAssignmentCandidate | null>
+  assignMechanic: (bookingId: number, mechanicId: number, serviceCenterId: number) => Promise<number>
 }
 
 export async function listProviderPendingBookings(
@@ -90,6 +132,75 @@ export async function listProviderConfirmedBookings(
       reason: 'error',
       error: 'Confirmed bookings could not be loaded. Please try again.',
     }
+  }
+}
+
+export async function assignMechanicToProviderBooking(
+  actor: BookingActor,
+  bookingInput: unknown,
+  mechanicInput: unknown,
+  repository: ProviderMechanicAssignmentRepository,
+): Promise<ProviderMechanicAssignmentResult> {
+  if (!actor || !Number.isSafeInteger(actor.id) || actor.id <= 0) {
+    return { success: false, reason: 'unauthenticated', error: 'Please sign in to assign a mechanic.' }
+  }
+  if (actor.role !== UserRole.SERVICE_PROVIDER && actor.role !== UserRole.ADMIN) {
+    return { success: false, reason: 'forbidden', error: 'You do not have permission to assign mechanics.' }
+  }
+
+  const parseId = (input: unknown) => typeof input === 'number'
+    ? input
+    : typeof input === 'string' && /^\d+$/.test(input)
+      ? Number(input)
+      : Number.NaN
+  const bookingId = parseId(bookingInput)
+  const mechanicId = parseId(mechanicInput)
+  if (!Number.isSafeInteger(bookingId) || bookingId <= 0 || !Number.isSafeInteger(mechanicId) || mechanicId <= 0) {
+    return { success: false, reason: 'invalid_input', error: 'Choose a valid booking and mechanic.' }
+  }
+
+  try {
+    const booking = await repository.findBookingContext(bookingId)
+    if (!booking) return { success: false, reason: 'not_found', error: 'Booking not found.' }
+    if (booking.status !== BookingStatus.CONFIRMED) {
+      return { success: false, reason: 'invalid_state', error: 'A mechanic can only be assigned to a confirmed booking.' }
+    }
+    if (booking.mechanicId !== null) {
+      return { success: false, reason: 'already_assigned', error: 'A mechanic is already assigned to this booking.' }
+    }
+
+    const mechanic = await repository.findMechanic(mechanicId)
+    if (!mechanic || mechanic.isActive !== true) {
+      return { success: false, reason: 'mechanic_unavailable', error: 'That mechanic is not available for assignment.' }
+    }
+    if (mechanic.serviceCenterId !== booking.serviceCenterId) {
+      return { success: false, reason: 'service_center_mismatch', error: 'Choose a mechanic from this booking’s service center.' }
+    }
+
+    const updated = await repository.assignMechanic(bookingId, mechanicId, booking.serviceCenterId)
+    if (updated === 1) return { success: true, mechanic: { id: mechanic.id, name: mechanic.name } }
+    if (updated !== 0) {
+      return { success: false, reason: 'error', error: 'The mechanic could not be assigned. Please try again.' }
+    }
+
+    const latest = await repository.findBookingContext(bookingId)
+    if (!latest) return { success: false, reason: 'not_found', error: 'Booking not found.' }
+    if (latest.status !== BookingStatus.CONFIRMED) {
+      return { success: false, reason: 'invalid_state', error: 'This booking is no longer confirmed.' }
+    }
+    if (latest.mechanicId !== null) {
+      return { success: false, reason: 'already_assigned', error: 'A mechanic was already assigned to this booking.' }
+    }
+    const latestMechanic = await repository.findMechanic(mechanicId)
+    if (!latestMechanic || latestMechanic.isActive !== true) {
+      return { success: false, reason: 'mechanic_unavailable', error: 'That mechanic is no longer available for assignment.' }
+    }
+    if (latestMechanic.serviceCenterId !== latest.serviceCenterId) {
+      return { success: false, reason: 'service_center_mismatch', error: 'Choose a mechanic from this booking’s service center.' }
+    }
+    return { success: false, reason: 'error', error: 'The mechanic could not be assigned. Please try again.' }
+  } catch {
+    return { success: false, reason: 'error', error: 'The mechanic could not be assigned. Please try again.' }
   }
 }
 

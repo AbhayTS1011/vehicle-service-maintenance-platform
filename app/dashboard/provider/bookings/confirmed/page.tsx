@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation'
 import { db } from '@/lib/db'
 import { verifyToken } from '@/lib/auth/jwt'
 import { listProviderConfirmedBookings } from '@/lib/booking/booking-service'
+import { AssignMechanicForm } from './AssignMechanicForm'
 import { StartServiceForm } from './StartServiceForm'
 
 const dateTime = new Intl.DateTimeFormat('en-IN', {
@@ -33,7 +34,7 @@ export default async function ProviderConfirmedBookingsPage() {
         <span className="badge">Service provider</span>
         <h1 style={{ fontSize: '2rem', margin: '1rem 0' }}>Confirmed bookings</h1>
         <p style={{ color: '#94a3b8', marginBottom: '1.5rem' }}>
-          Start service for a confirmed customer booking.
+          Assign an active mechanic to a confirmed booking, then start service.
         </p>
         <p style={{ marginBottom: '1.5rem' }}>
           <a href="/dashboard/provider/bookings" style={{ color: '#93c5fd' }}>
@@ -50,7 +51,7 @@ export default async function ProviderConfirmedBookingsPage() {
             <table aria-label="Confirmed service bookings" style={{ width: '100%', borderCollapse: 'collapse', minWidth: '850px' }}>
               <thead>
                 <tr>
-                  {['Reference', 'Customer', 'Vehicle', 'Service', 'Scheduled for', 'Status', 'Action'].map((heading) => (
+                  {['Reference', 'Customer', 'Vehicle', 'Service', 'Scheduled for', 'Status', 'Mechanic', 'Actions'].map((heading) => (
                     <th key={heading} scope="col" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid #475569', color: '#cbd5e1' }}>
                       {heading}
                     </th>
@@ -71,8 +72,9 @@ export default async function ProviderConfirmedBookingsPage() {
                       {booking.status === BookingStatus.CONFIRMED ? 'Confirmed' : booking.status.replaceAll('_', ' ')}
                     </td>
                     <td style={{ padding: '0.75rem', borderBottom: '1px solid #334155' }}>
-                      <StartServiceForm bookingId={booking.id} />
+                      {booking.mechanic ? booking.mechanic.name : <AssignMechanicForm bookingId={booking.id} mechanics={booking.serviceCenter.mechanics} />}
                     </td>
+                    <td style={{ padding: '0.75rem', borderBottom: '1px solid #334155' }}><StartServiceForm bookingId={booking.id} /></td>
                   </tr>
                 ))}
               </tbody>

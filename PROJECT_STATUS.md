@@ -25,10 +25,10 @@ The platform manages the complete vehicle-service lifecycle for a single service
 
 ```text
 Branch: main
-Latest completed feature checkpoint: Phase 4C.8 — Provider Starts a Confirmed Booking (recorded in the current `main` commit).
-Previous feature checkpoint: 81296e0 (`feat: implement provider booking rejection`).
-Latest verified pre-feature checkpoint: 81296e0 (`feat: implement provider booking rejection`).
-Current feature checkpoint: Phase 4C.8 — Provider Starts a Confirmed Booking.
+Latest completed feature checkpoint: Phase 4C.9 — Mechanic Assignment to Confirmed Bookings (commit created after verification; see Git history).
+Previous feature checkpoint: c85e340 (`feat: implement provider start service`), the actual `main` HEAD before this task.
+Latest verified pre-feature checkpoint: c85e340 (`feat: implement provider start service`).
+Current feature checkpoint: Phase 4C.9 — Mechanic Assignment to Confirmed Bookings.
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -54,7 +54,8 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Phase 4C.6 — Provider Booking Confirmation | COMPLETE (mock-tested; PostgreSQL connectivity not verified) |
 | Phase 4C.7 — Provider Booking Rejection | COMPLETE (mock-tested; PostgreSQL connectivity not verified; migration added) |
 | Phase 4C.8 — Provider Starts a Confirmed Booking | COMPLETE (mock-tested; PostgreSQL connectivity not verified) |
-| Remaining Phase 4C.9+ — Booking Management | NOT STARTED |
+| Phase 4C.9 — Mechanic Assignment to Confirmed Bookings | COMPLETE (mock-tested; PostgreSQL connectivity not verified) |
+| Remaining Phase 4C.10+ — Booking Management | NOT STARTED |
 | Phase 5 — Service Records & Parts | NOT STARTED |
 | Phase 6 — Invoicing | NOT STARTED |
 | Phase 7 — Reviews & Ratings | NOT STARTED |
@@ -461,7 +462,7 @@ if invalid → redirect to /login
 /dashboard/provider — SERVICE_PROVIDER or ADMIN
   — Provider dashboard (vehicle/service management)
   └── /bookings — PENDING queue with server-authorized confirm/reject actions (Phase 4C.5–4C.7)
-      └── /confirmed — CONFIRMED queue with server-authorized Start Service action (Phase 4C.8)
+      └── /confirmed — CONFIRMED queue with server-authorized mechanic assignment and Start Service actions (Phases 4C.8–4C.9)
 /dashboard/customer — CUSTOMER or FLEET_MANAGER
   ├── /vehicles — vehicle management
   └── /bookings
@@ -572,7 +573,7 @@ PLANNED        — In roadmap but not started
 ## CURRENT STOP POINT
 ```
 
-Development is stopped after **Phase 4C.8 — Provider Starts a Confirmed Booking**.
+Development is stopped after **Phase 4C.9 — Mechanic Assignment to Confirmed Bookings**.
 
 - Customers can submit a new booking request for their own vehicle and an existing service type. Requests are created with `PENDING` status.
 - Booking creation uses Prisma against PostgreSQL. The legacy user, vehicle, service-center, and mechanic methods in `lib/db.ts` remain mock placeholders; booking creation itself is not in-memory.
@@ -590,12 +591,15 @@ Development is stopped after **Phase 4C.8 — Provider Starts a Confirmed Bookin
 - Rejection tests cover both allowed roles, denied roles, invalid/missing/non-pending bookings, concurrent requests, and safe DB errors. They verify rejection uses `REJECTED` and does not use `CANCELLED`; tests use mocks, not live PostgreSQL.
 - Service providers and admins can review only `CONFIRMED` bookings at `/dashboard/provider/bookings/confirmed` and start service. The page and service enforce the signed-in role; Prisma filters the list by `CONFIRMED`, and an atomic conditional update changes only a still-confirmed booking to `IN_PROGRESS`. Missing, stale, unauthorized, and database-error cases return safe results. Success revalidates the confirmed and provider booking routes.
 - Start-service tests cover both allowed roles, denied roles, invalid/missing IDs, confirmed-only state transitions, stale/concurrent attempts, and database errors. Existing booking creation, listing, cancellation, confirmation, rejection, and JWT tests also pass.
+- Service providers and admins can assign an active mechanic to an unassigned `CONFIRMED` booking on `/dashboard/provider/bookings/confirmed`. The server derives identity and role from the verified session, validates the booking and mechanic, and requires the mechanic to belong to the booking's service center. The provider view reads active mechanic records from PostgreSQL and displays the assigned mechanic after refresh.
+- Assignment persistence uses a single parameterized PostgreSQL update that requires the booking to remain `CONFIRMED` and unassigned and the mechanic to remain active and in the same service center. Concurrent or stale requests cannot overwrite an assignment or assign after the booking changes state. No schema migration was needed: the existing nullable `mechanic_id` foreign key and service-center relationships support the feature.
+- Mechanic-assignment tests cover SERVICE_PROVIDER/ADMIN authorization, unauthenticated/CUSTOMER/FLEET_MANAGER denial, invalid/missing booking and mechanic IDs, inactive/incompatible mechanics, non-confirmed/already-assigned bookings, concurrent attempts, and safe database errors. These mocked-repository tests do not verify live PostgreSQL connectivity.
 - `CANCELLED` and `REJECTED` are distinct booking statuses in `database/schema.sql` and `prisma/schema.prisma`. Existing databases must apply `database/migrations/20261009_add_cancelled_booking_status.sql` and `database/migrations/20261011_add_rejected_booking_status.sql` before deploying code that writes those statuses. Neither migration was applied because no real `DATABASE_URL` is configured.
-- Booking completion, editing/rescheduling, mechanic assignment, and other lifecycle features remain NOT STARTED.
-- A future session must NOT automatically begin Phase 4C.9 or any other feature.
+- Booking completion, editing/rescheduling, appointment availability, and other lifecycle features remain NOT STARTED.
+- A future session must NOT automatically begin Phase 4C.10 or any other feature.
 - Wait for explicit instructions from the user before implementing the next task.
 
-Previous feature checkpoint: **`81296e0`** — `feat: implement provider booking rejection`. Current feature checkpoint: **Phase 4C.8 — Provider Starts a Confirmed Booking** (recorded in the current Git commit on `main`).
+Previous feature checkpoint: **`c85e340`** — `feat: implement provider start service`. Current feature checkpoint: **Phase 4C.9 — Mechanic Assignment to Confirmed Bookings** (recorded in the commit containing this update). The actual final commit is verified from Git history after commit creation.
 
 Verification history:
 - Focused booking tests: 18 passed with Node's built-in test runner, covering creation, listing, ownership, not found, and safe database errors.
@@ -610,8 +614,10 @@ Verification history:
 - Phase 4C.7 verification (2026-10-11): `npx prisma generate` passed; `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0; `/dashboard/provider/bookings` emitted as dynamic). The unprivileged build attempt hit the Windows Prisma-junction permission error; the elevated retry passed. `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 64/64, including rejection and existing confirmation/cancellation regression tests. Unit tests use mocked repositories; PostgreSQL connectivity remains unverified because `DATABASE_URL` is unset and `.env` is absent. The development-only GHSA-vfj7-8cjw-p6xm advisory described in Section 16 remains outstanding.
 - Phase 4C.8 verification (2026-10-11): `npx prisma generate` passed; `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0; `/dashboard/provider/bookings/confirmed` emitted as dynamic). The unprivileged build attempt hit the Windows Prisma-junction permission error; the elevated retry passed. `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 84/84, including start-service authorization/state/concurrency/error cases and the existing creation, listing, cancellation, confirmation, rejection, and JWT regressions. Tests use mocked repositories; PostgreSQL connectivity remains unverified because `DATABASE_URL` is unset and `.env` is absent. The development-only GHSA-vfj7-8cjw-p6xm advisory described in Section 16 remains outstanding.
 - Phase 4C.8 files changed: `lib/booking/booking-service.ts`, `lib/booking/booking-service.test.cjs`, `lib/db.ts`, provider booking `actions.ts` and pending queue page, plus `confirmed/page.tsx`, `confirmed/loading.tsx`, `confirmed/StartServiceForm.tsx`, and this status document. No schema migration was needed because `IN_PROGRESS` already exists in both SQL and Prisma enums.
+- Phase 4C.9 verification (2026-10-12): `npx prisma generate` passed; `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0; `/dashboard/provider/bookings/confirmed` emitted as dynamic). The initial unprivileged build failed because Windows denied creation of the Prisma junction under `.next`; the elevated retry passed. `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 99/99, including mechanic assignment and earlier booking/JWT regressions. Current process `DATABASE_URL` is unset; PostgreSQL connectivity was not tested. The development-only GHSA-vfj7-8cjw-p6xm advisory described in Section 16 remains outstanding.
+- Phase 4C.9 files changed: `app/dashboard/provider/bookings/actions.ts`, `app/dashboard/provider/bookings/confirmed/page.tsx`, new `app/dashboard/provider/bookings/confirmed/AssignMechanicForm.tsx`, `lib/booking/booking-service.ts`, `lib/booking/booking-service.test.cjs`, `lib/db.ts`, and this status document. No schema or migration change was needed.
 - Previous checkpoint audit: findings were reduced from 19 to 1 critical Next.js package entry; this historical result was superseded by the Next.js 16 migration documented in Section 16.
-- PostgreSQL: connection not attempted because neither the process environment nor a local `.env` contains `DATABASE_URL`. Configure `DATABASE_URL` with the actual PostgreSQL username, password, host, port, database name, and `?schema=public`; no credentials were created or printed.
+- PostgreSQL: connection was not attempted because the current process environment has no `DATABASE_URL`; no credentials were created or printed.
 
 ---
 
@@ -643,7 +649,10 @@ Phase 4C.7 — Provider Booking Rejection — COMPLETE (PostgreSQL connectivity 
 Phase 4C.8 — Provider Starts a Confirmed Booking — COMPLETE (PostgreSQL connectivity not verified)
   • SERVICE_PROVIDER and ADMIN can list CONFIRMED bookings and start service via a server-authorized action
   • Atomic Prisma update transitions only a still-CONFIRMED booking to IN_PROGRESS
-Phase 4C.9+ — Booking lifecycle and appointment management — NOT STARTED
+Phase 4C.9 — Mechanic Assignment to Confirmed Bookings — COMPLETE (PostgreSQL connectivity not verified)
+  • SERVICE_PROVIDER and ADMIN assign an active same-center mechanic to an unassigned CONFIRMED booking
+  • Conditional parameterized PostgreSQL update rechecks status, assignment, mechanic activity, and service-center match atomically
+Phase 4C.10+ — Booking lifecycle and appointment management — NOT STARTED
 
 Phase 5 — Service Records & Parts — NOT STARTED
   • Service execution recording
@@ -684,7 +693,7 @@ Phase 11 — Polish & Deployment — NOT STARTED
 The original plan has 39 tasks across 12 phases; remaining work is not re-estimated here.
 ```
 
-> **Note**: Phases 4C.1–4C.8 implement customer booking creation, listing, details, cancellation and provider queue, confirmation, rejection, and service start. Booking completion and later lifecycle/provider-management features remain NOT STARTED.
+> **Note**: Phases 4C.1–4C.9 implement customer booking creation, listing, details, cancellation and provider queue, confirmation, rejection, service start, and mechanic assignment. Booking completion and later lifecycle/provider-management features remain NOT STARTED.
 
 ---
 
@@ -855,7 +864,7 @@ PostgreSQL runtime connectivity remains unverified. Provide `DATABASE_URL=postgr
 After creating this file:
 
 1. ✅ Read the entire file for contradictions.
-2. ✅ Compare phase status against the actual repository; completed booking work through Phase 4C.8 is recorded above.
+2. ✅ Compare phase status against the actual repository; completed booking work through Phase 4C.9 is recorded above.
 3. ✅ Verify the latest Git commit matches expectations.
 4. ✅ Verify no secrets are included (`.env`, credentials, API keys not committed).
 5. ✅ Verify no unimplemented booking lifecycle or later-phase functionality is marked complete.

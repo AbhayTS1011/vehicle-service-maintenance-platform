@@ -109,6 +109,34 @@ export const db = {
     async findConfirmedProviderBookings(query: ProviderConfirmedBookingsQuery) {
       return prisma.booking.findMany(query)
     },
+    async findBookingAssignmentContext(bookingId: number) {
+      return prisma.booking.findUnique({
+        where: { id: bookingId },
+        select: { status: true, mechanicId: true, serviceCenterId: true },
+      })
+    },
+    async findMechanicForAssignment(mechanicId: number) {
+      return prisma.mechanic.findUnique({
+        where: { id: mechanicId },
+        select: { id: true, name: true, isActive: true, serviceCenterId: true },
+      })
+    },
+    async assignMechanicToConfirmedBooking(bookingId: number, mechanicId: number, serviceCenterId: number) {
+      const rows = await prisma.$queryRaw<Array<{ id: number }>>`
+        UPDATE bookings AS booking
+        SET mechanic_id = ${mechanicId}
+        FROM mechanics AS mechanic
+        WHERE booking.id = ${bookingId}
+          AND booking.status = 'CONFIRMED'::booking_status
+          AND booking.mechanic_id IS NULL
+          AND booking.service_center_id = ${serviceCenterId}
+          AND mechanic.id = ${mechanicId}
+          AND mechanic.is_active IS TRUE
+          AND mechanic.service_center_id = booking.service_center_id
+        RETURNING booking.id
+      `
+      return rows.length
+    },
     async confirmPendingForProvider(bookingId: number) {
       const result = await prisma.booking.updateMany({
         where: { id: bookingId, status: 'PENDING' },

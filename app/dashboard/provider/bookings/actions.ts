@@ -5,7 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { UserRole } from '@prisma/client'
 import { db } from '@/lib/db'
 import { verifyToken } from '@/lib/auth/jwt'
-import { confirmProviderBooking, rejectProviderBooking, startProviderBooking } from '@/lib/booking/booking-service'
+import { assignMechanicToProviderBooking, confirmProviderBooking, rejectProviderBooking, startProviderBooking } from '@/lib/booking/booking-service'
 
 export async function confirmBooking(formData: FormData) {
   const token = (await cookies()).get('apex_session')?.value
@@ -52,5 +52,22 @@ export async function startService(formData: FormData) {
     revalidatePath('/dashboard/provider/bookings/confirmed')
     revalidatePath('/dashboard/provider/bookings')
   }
+  return result
+}
+
+export async function assignMechanic(formData: FormData) {
+  const token = (await cookies()).get('apex_session')?.value
+  const payload = token ? await verifyToken(token) : null
+  const role = payload?.role as UserRole | undefined
+  const actor = payload?.userId && role ? { id: payload.userId, role } : null
+
+  const result = await assignMechanicToProviderBooking(actor, formData.get('bookingId'), formData.get('mechanicId'), {
+    findBookingContext: (bookingId) => db.booking.findBookingAssignmentContext(bookingId),
+    findMechanic: (mechanicId) => db.booking.findMechanicForAssignment(mechanicId),
+    assignMechanic: (bookingId, mechanicId, serviceCenterId) =>
+      db.booking.assignMechanicToConfirmedBooking(bookingId, mechanicId, serviceCenterId),
+  })
+
+  if (result.success) revalidatePath('/dashboard/provider/bookings/confirmed')
   return result
 }

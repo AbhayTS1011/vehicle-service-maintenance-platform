@@ -228,7 +228,7 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 | **Phase 2** | Authentication & Authorization | ✅ Completed |
 | **Phase 3** | Vehicle Management | ✅ Completed |
 | **Phase 4** | Service Center & Mechanic Management | ✅ Implemented (live DB verification pending) |
-| **Phase 5** | Booking System | ✅ Implemented (4C.1–4C.12; live DB verification pending) |
+| **Phase 5** | Booking System | 🟡 Implemented — verification pending (4C.1–4C.12; live PostgreSQL and migration application unverified) |
 | **Phase 6** | Service Records & Parts | ⏳ Not started |
 | **Phase 7** | Invoicing | ⏳ Not started |
 | **Phase 8** | Reviews & Ratings | ⏳ Not started |

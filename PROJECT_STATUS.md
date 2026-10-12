@@ -25,8 +25,8 @@ The platform manages the complete vehicle-service lifecycle for a single service
 
 ```text
 Branch: main
-Audit baseline checkpoint: `4daaea65f02dd42c60bee6cc4fab508d40389538` (`docs: record phase 4 management checkpoint`).
-Phase 4 audit: COMPLETE; no implementation or schema changes were required. Verification rerun on 2026-10-12; live PostgreSQL remains unverified because `DATABASE_URL` is not configured.
+Phase 5 verification audit baseline: `c7337bf144aa99a92ec96bc0ab8b0fc61e2bbb87` (`docs: record phase 4 audit verification`).
+Phase 5 implementation: complete through internal checkpoints 4C.1–4C.12. Verification classification: IMPLEMENTED — VERIFICATION PENDING because no safe PostgreSQL target is configured and live migration/lifecycle behavior cannot be verified.
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -44,6 +44,7 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Phase 3 — Vehicle Management | COMPLETE |
 | Phase 4A — Service Center Management (PostgreSQL read/edit path) | COMPLETE (live connection not verified) |
 | Phase 4B — Mechanic Management (PostgreSQL CRUD path) | COMPLETE (live connection not verified) |
+| Official PLAN Phase 5 — Booking System | IMPLEMENTED — VERIFICATION PENDING (automated tests pass; live PostgreSQL and migration state unverified) |
 | Phase 4C.1 — Booking Creation | COMPLETE (database connection not verified in this environment) |
 | Phase 4C.2 — Booking Listing | COMPLETE (PostgreSQL connectivity not verified) |
 | Phase 4C.3 — Customer Booking Details | COMPLETE (build verified; PostgreSQL connectivity not verified) |
@@ -53,8 +54,8 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Phase 4C.7 — Provider Booking Rejection | COMPLETE (mock-tested; PostgreSQL connectivity not verified; migration added) |
 | Phase 4C.8 — Provider Starts a Confirmed Booking | COMPLETE (mock-tested; PostgreSQL connectivity not verified) |
 | Phase 4C.9 — Mechanic Assignment to Confirmed Bookings | COMPLETE (mock-tested; PostgreSQL connectivity not verified) |
-| Phase 4C.10 — Appointment Availability and Scheduling | COMPLETE (unit-tested; migration unapplied; PostgreSQL connectivity not verified) |
-| Phase 4C.11 — Customer Booking Editing and Rescheduling | COMPLETE (unit-tested; migration unapplied; PostgreSQL connectivity not verified) |
+| Phase 4C.10 — Appointment Availability and Scheduling | COMPLETE (unit-tested; migration application state unverified; PostgreSQL connectivity not verified) |
+| Phase 4C.11 — Customer Booking Editing and Rescheduling | COMPLETE (unit-tested; migration application state unverified; PostgreSQL connectivity not verified) |
 | Phase 4C.12 — Provider Booking Completion | COMPLETE (mock-tested; PostgreSQL connectivity not verified) |
 | Official PLAN Phase 6 — Service Records & Parts | NOT STARTED |
 | Official PLAN Phase 7 — Invoicing | NOT STARTED |
@@ -603,13 +604,13 @@ Phase 4C.1–4C.12 booking lifecycle implementation is complete. The next offici
 - Phase 4C.10 unit coverage verifies allowed availability roles, malformed date/service rejection, timezone conversion, opening-window limits, duration overlap, capacity, explicit-offset input, and safe stale-slot feedback. These tests do not verify the SQL migration or live PostgreSQL transaction behavior.
 - Customers and fleet managers can edit notes and reschedule only their own `PENDING` booking. The server derives identity from the verified session and accepts no client-supplied status, owner, vehicle, service, or mechanic fields. Availability is checked again in a service-center-locked transaction; an expected prior appointment timestamp prevents a stale form from overwriting a newer edit. Cancellation behavior is unchanged.
 - Phase 4C.11 tests cover CUSTOMER/FLEET_MANAGER success, unauthenticated/provider/admin denial, ownership, pending-only state, invalid IDs/dates/notes, unavailable slots, missing records, safe database errors, and stale concurrent edits. They use a mocked repository rather than a live database.
-- `CANCELLED` and `REJECTED` are distinct booking statuses in `database/schema.sql` and `prisma/schema.prisma`. Existing databases must apply `database/migrations/20261009_add_cancelled_booking_status.sql` and `database/migrations/20261011_add_rejected_booking_status.sql` before deploying code that writes those statuses. Neither migration was applied because no real `DATABASE_URL` is configured.
+- `CANCELLED` and `REJECTED` are distinct booking statuses in `database/schema.sql` and `prisma/schema.prisma`. The forward migrations `database/migrations/20261009_add_cancelled_booking_status.sql` and `database/migrations/20261011_add_rejected_booking_status.sql` use `ADD VALUE IF NOT EXISTS`. Whether either migration is applied to a database is UNKNOWN: no database target is configured or reachable in this environment, and this audit did not apply them.
 - Mechanic shift calendars are not modeled; scheduling capacity counts active mechanics as parallel resources. Appointment start options use a documented 15-minute increment.
-- The new migration `database/migrations/20261012_add_booking_scheduling.sql` has not been applied because no configured `DATABASE_URL` is available. Existing centers with custom operating-hours text must configure structured hours and an IANA timezone at `/dashboard/admin/service-center/schedule` after applying it.
+- `database/migrations/20261012_add_booking_scheduling.sql` adds the nullable timezone, normalized hours table, default-hours backfill for exact legacy defaults, and booking capacity index using idempotent DDL. Its application state is UNKNOWN because no database target is configured or reachable; this audit did not apply it. Existing centers with custom operating-hours text must configure structured hours and an IANA timezone at `/dashboard/admin/service-center/schedule` after applying it. No timezone or hours were invented.
 - A future session must NOT automatically begin another feature.
 - Wait for explicit instructions from the user before implementing the next task.
 
-Previous feature checkpoint: **`8a5facc`** — `feat: add appointment availability and scheduling`. Current feature checkpoint: **Phase 4C.11 — Customer Booking Editing and Rescheduling** (complete).
+Previous feature checkpoint: **`8a5facc`** — `feat: add appointment availability and scheduling`. The booking implementation subsequently completed internal checkpoints 4C.1–4C.12; the latest implementation feature checkpoint is recorded in Git history. Official `PLAN.md` Phase 5 remains implemented with verification pending until live database and migration checks can be performed.
 
 Verification history:
 - Focused booking tests: 18 passed with Node's built-in test runner, covering creation, listing, ownership, not found, and safe database errors.
@@ -627,14 +628,15 @@ Verification history:
 - Phase 4C.9 verification (2026-10-12): `npx prisma generate` passed; `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0; `/dashboard/provider/bookings/confirmed` emitted as dynamic). The initial unprivileged build failed because Windows denied creation of the Prisma junction under `.next`; the elevated retry passed. `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 99/99, including mechanic assignment and earlier booking/JWT regressions. Current process `DATABASE_URL` is unset; PostgreSQL connectivity was not tested. The development-only GHSA-vfj7-8cjw-p6xm advisory described in Section 16 remains outstanding.
 - Phase 4C.9 files changed: `app/dashboard/provider/bookings/actions.ts`, `app/dashboard/provider/bookings/confirmed/page.tsx`, new `app/dashboard/provider/bookings/confirmed/AssignMechanicForm.tsx`, `lib/booking/booking-service.ts`, `lib/booking/booking-service.test.cjs`, `lib/db.ts`, and this status document. No schema or migration change was needed.
 - Phase 4C.10 verification (2026-10-12): `npx prisma generate` passed; `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0; `/dashboard/admin/service-center/schedule` and customer booking routes emitted as dynamic); `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 108/108. Unit tests use mocks for persistence; PostgreSQL connectivity and migration execution were not verified because `DATABASE_URL` is unset and `.env` files are absent. The development-only GHSA-vfj7-8cjw-p6xm advisory remains outstanding.
-- Phase 4C.10 files changed: `database/schema.sql`, `database/migrations/20261012_add_booking_scheduling.sql`, `prisma/schema.prisma`, `lib/booking/scheduling.ts`, `lib/booking/booking-service.ts`, `lib/booking/booking-service.test.cjs`, `lib/db.ts`, customer booking creation page/form/actions, admin service-center schedule page/form/actions, and this status document. The migration remains unapplied.
-- Phase 4C.11 verification (2026-10-12): `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0; customer booking detail and creation routes emitted as dynamic); `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 116/116. The Phase 4C.10 migration remains unapplied; PostgreSQL connectivity is unverified because `DATABASE_URL` is unset. Tests use mocked repositories. The development-only GHSA-vfj7-8cjw-p6xm advisory remains outstanding.
+- Phase 4C.10 files changed: `database/schema.sql`, `database/migrations/20261012_add_booking_scheduling.sql`, `prisma/schema.prisma`, `lib/booking/scheduling.ts`, `lib/booking/booking-service.ts`, `lib/booking/booking-service.test.cjs`, `lib/db.ts`, customer booking creation page/form/actions, admin service-center schedule page/form/actions, and this status document. Migration application status is now recorded as unverified because no target database can be inspected.
+- Phase 4C.11 verification (2026-10-12): `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0; customer booking detail and creation routes emitted as dynamic); `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 116/116. The Phase 4C.10 migration application state is unverified because PostgreSQL connectivity is unavailable. Tests use mocked repositories. The development-only GHSA-vfj7-8cjw-p6xm advisory remains outstanding.
 - Phase 4C.11 files changed: `lib/booking/booking-service.ts`, `lib/booking/booking-service.test.cjs`, `lib/db.ts`, `app/dashboard/customer/bookings/actions.ts`, `app/dashboard/customer/bookings/[id]/page.tsx`, new `app/dashboard/customer/bookings/[id]/RescheduleBookingForm.tsx`, and this status document.
 - Phase 4C.12 verification (2026-10-12): `npx prisma generate` passed; `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0; `/dashboard/provider/bookings/in-progress` emitted as dynamic); `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 130/130. The sandboxed build first failed because Windows denied creation of Next.js's Prisma junction under `.next`; the permitted retry passed. PostgreSQL connectivity and the Phase 4C.10 migration were not verified because `DATABASE_URL` and `.env` are absent. The development-only GHSA-vfj7-8cjw-p6xm advisory remains outstanding.
 - Phase 4C.12 files changed: `app/dashboard/provider/bookings/actions.ts`, `app/dashboard/provider/bookings/confirmed/page.tsx`, new `app/dashboard/provider/bookings/in-progress/page.tsx`, new `app/dashboard/provider/bookings/in-progress/CompleteServiceForm.tsx`, `lib/booking/booking-service.ts`, `lib/booking/booking-service.test.cjs`, `lib/db.ts`, and this status document. No schema change was needed because `COMPLETED` already exists in SQL and Prisma.
 - Previous checkpoint audit: findings were reduced from 19 to 1 critical Next.js package entry; this historical result was superseded by the Next.js 16 migration documented in Section 16.
 - PostgreSQL: connection was not attempted because the current process environment has no `DATABASE_URL`, `.env`, or `prisma/.env`; no credentials were created or printed.
 - Phase 4 management verification (2026-10-12): `npx prisma generate` passed; `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0; `/dashboard/admin/service-center`, `/dashboard/admin/service-center/schedule`, and `/dashboard/admin/mechanics` emitted as dynamic routes); `node --test lib/admin/management.test.cjs` passed 13/13; `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 130/130. The first sandboxed build failed only because Windows denied creation of Next.js's Prisma junction under `.next`; the permitted retry passed. Live PostgreSQL is UNVERIFIED (`DATABASE_URL`, `.env`, and `prisma/.env` are absent). No schema changes or migrations were required. The development-only GHSA-vfj7-8cjw-p6xm remains outstanding.
+- Phase 5 closure verification (2026-10-12): `npx prisma generate`, `npx tsc --noEmit`, `npm run lint`, and the elevated retry of `npm run build` passed. `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 130/130; `node --test lib/admin/management.test.cjs` passed 13/13. Tests are mocked/unit tests, not PostgreSQL integration or end-to-end lifecycle tests. The first concurrent TypeScript run overlapped with Next.js replacing `.next/types` and failed on missing generated types; the post-build sequential rerun passed. The sandbox build failed creating the Prisma junction due Windows access denial; elevated retry passed. `npm audit --json` could not reach registry.npmjs.org because DNS resolution failed; installed dependency inspection confirms `braces@3.0.3` remains under the dev-only `eslint-config-next` path, and GHSA-vfj7-8cjw-p6xm currently has no published patched version. `DATABASE_URL`, `.env`, and `prisma/.env` are absent and localhost:5432 is closed. The application state of each booking migration is UNKNOWN; this audit applied none. Official PLAN Phase 5 is therefore **IMPLEMENTED — VERIFICATION PENDING**, not fully verified. Audit baseline Git checkpoint: `c7337bf144aa99a92ec96bc0ab8b0fc61e2bbb87`.
 - Phase 4 management files changed: `app/dashboard/admin/service-center/page.tsx`, new `service-center/actions.ts`, `ServiceCenterForm.tsx`, `loading.tsx`, `app/dashboard/admin/mechanics/page.tsx`, new `mechanics/actions.ts`, `MechanicManagementForms.tsx`, `loading.tsx`, `lib/admin/management.ts`, `lib/admin/session.ts`, `lib/admin/management.test.cjs`, `lib/db.ts`, `PROJECT_STATUS.md`, and `README.md`. Feature checkpoint: `0681e52` (`feat: complete service center and mechanic management`); verify the final pushed `main` head in Git history.
 - Phase 4 audit verification rerun (2026-10-12): the Prisma, TypeScript, lint, production build, admin-management, and booking/JWT checks all passed; test counts were 13/13 admin and 130/130 booking/JWT. Live PostgreSQL remains unverified because `DATABASE_URL`, `.env`, and `prisma/.env` are absent. No feature, schema, or migration changes were needed. `origin/main`'s local tracking ref matched `4daaea65f02dd42c60bee6cc4fab508d40389538`; a fresh remote lookup was unavailable because DNS/network access failed. The outstanding development-only advisory GHSA-vfj7-8cjw-p6xm remains documented above.
 
@@ -654,7 +656,7 @@ Phase 4C.3 — Customer Booking Details — COMPLETE (build verified; database c
   • Customer-scoped server-rendered details page; booking ID and authenticated customer ID are queried together
 Phase 4C.4 — Customer Booking Cancellation — COMPLETE (migration added; database connection not verified)
   • Customer/fleet manager may cancel only their own PENDING booking; atomic conditional update writes CANCELLED
-  • Forward migration: database/migrations/20261009_add_cancelled_booking_status.sql (not applied to a live database)
+  • Forward migration: database/migrations/20261009_add_cancelled_booking_status.sql (application state unverified)
 Phase 4C.5 — Service Provider Pending Booking Queue — COMPLETE (PostgreSQL connectivity not verified)
   • Read-only server-rendered pending queue; only SERVICE_PROVIDER and ADMIN are authorized
   • Prisma filters PENDING in the database and selects minimal booking/customer/vehicle/service fields
@@ -664,18 +666,18 @@ Phase 4C.6 — Provider Booking Confirmation — COMPLETE (PostgreSQL connectivi
 Phase 4C.7 — Provider Booking Rejection — COMPLETE (PostgreSQL connectivity not verified)
   • SERVICE_PROVIDER and ADMIN can reject a PENDING booking via a server-authorized action
   • Atomic Prisma update sets REJECTED only when the booking remains PENDING; customer cancellation still writes CANCELLED
-  • Forward enum migration: database/migrations/20261011_add_rejected_booking_status.sql (not applied to a live database)
+  • Forward enum migration: database/migrations/20261011_add_rejected_booking_status.sql (application state unverified)
 Phase 4C.8 — Provider Starts a Confirmed Booking — COMPLETE (PostgreSQL connectivity not verified)
   • SERVICE_PROVIDER and ADMIN can list CONFIRMED bookings and start service via a server-authorized action
   • Atomic Prisma update transitions only a still-CONFIRMED booking to IN_PROGRESS
 Phase 4C.9 — Mechanic Assignment to Confirmed Bookings — COMPLETE (PostgreSQL connectivity not verified)
   • SERVICE_PROVIDER and ADMIN assign an active same-center mechanic to an unassigned CONFIRMED booking
   • Conditional parameterized PostgreSQL update rechecks status, assignment, mechanic activity, and service-center match atomically
-Phase 4C.10 — Appointment Availability and Scheduling — COMPLETE (migration unapplied; PostgreSQL connectivity not verified)
+Phase 4C.10 — Appointment Availability and Scheduling — COMPLETE (migration application state unverified; PostgreSQL connectivity not verified)
   • Structured service-center weekly hours and explicit IANA timezone; exact default text schedule is backfilled
   • Duration-aware appointment capacity based on active mechanics, with 15-minute selectable starts
   • Booking creation serializes and rechecks availability before insert
-Phase 4C.11 — Customer Booking Editing and Rescheduling — COMPLETE (migration unapplied; PostgreSQL connectivity not verified)
+Phase 4C.11 — Customer Booking Editing and Rescheduling — COMPLETE (migration application state unverified; PostgreSQL connectivity not verified)
   • Owner-only edits to notes and appointment time while status remains PENDING
   • Availability rechecked transactionally; stale appointment timestamps prevent overwrites
 Phase 4C.12 — Provider Booking Completion — COMPLETE
@@ -719,7 +721,7 @@ Official PLAN Phase 12 — Polish & Deployment — NOT STARTED
 The original plan has 39 tasks across 12 phases; remaining work is not re-estimated here.
 ```
 
-> **Note**: Custom Phase 4C tracking decomposes official `PLAN.md` Phase 5 — Booking System into tasks 4C.1–4C.12. All booking lifecycle tasks are implemented. Applying the scheduling migration and verifying live PostgreSQL remain operational setup items. The following roadmap modules retain their official PLAN numbering: Phase 6 Services & Parts, 7 Invoicing, 8 Reviews, 9 Notifications, 10 Admin Dashboard, 11 QA, and 12 Deployment.
+> **Note**: Custom Phase 4C tracking decomposes official `PLAN.md` Phase 5 — Booking System into tasks 4C.1–4C.12. The implementation is complete and automated mocked tests pass, but official Phase 5 is **IMPLEMENTED — VERIFICATION PENDING** until the three migration application states and real PostgreSQL lifecycle behavior can be checked on an approved development/test database. No such database is configured in this environment. The following roadmap modules retain their official PLAN numbering; Phase 6 Services & Parts and all later phases remain NOT STARTED.
 
 ---
 

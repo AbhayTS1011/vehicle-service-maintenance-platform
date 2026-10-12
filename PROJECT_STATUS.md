@@ -25,9 +25,8 @@ The platform manages the complete vehicle-service lifecycle for a single service
 
 ```text
 Branch: main
-Latest verified feature checkpoint before Phase 4C.12: `d4b130c` (`feat: implement customer booking rescheduling`).
-Phase 4C.10–4C.12 are separate feature commits; see Git history for the actual final checkpoint after this update.
-Current feature checkpoint: Phase 4C.11 — Customer Booking Editing and Rescheduling.
+Latest verified feature checkpoint before this task: `4614bd8` (`feat: implement provider booking completion`).
+Current task: Phase 4 — Service Center and Mechanic Management persistence completion.
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -43,8 +42,8 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Phase 1 — Foundation & Infrastructure | COMPLETE |
 | Phase 2 — Authentication & RBAC | COMPLETE |
 | Phase 3 — Vehicle Management | COMPLETE |
-| Phase 4A — Service Center Management | COMPLETE |
-| Phase 4B — Mechanic Management | COMPLETE |
+| Phase 4A — Service Center Management (PostgreSQL read/edit path) | COMPLETE (live connection not verified) |
+| Phase 4B — Mechanic Management (PostgreSQL CRUD path) | COMPLETE (live connection not verified) |
 | Phase 4C.1 — Booking Creation | COMPLETE (database connection not verified in this environment) |
 | Phase 4C.2 — Booking Listing | COMPLETE (PostgreSQL connectivity not verified) |
 | Phase 4C.3 — Customer Booking Details | COMPLETE (build verified; PostgreSQL connectivity not verified) |
@@ -182,15 +181,15 @@ RBAC / ownership checks (middleware + API routes)
 
 ### Phase 4A — Service Center Management
 
-**Service center view/edit** for admin-only access:
+**Service center view/edit** with a PostgreSQL-backed admin-only path:
 
-- **Service center view** — `/dashboard/admin/service-center` — displays current service center information
-- **Admin-only access** — Proxy enforces ADMIN role
+- **Service center view and edit** — `/dashboard/admin/service-center` — reads and updates the current database record
+- **Admin-only access** — Proxy, page, management service, and Server Action enforce ADMIN role
 - **Reuse existing `service_center` schema** — no redesign needed
 
 **Key implementation**:
 - `app/dashboard/admin/service-center/page.tsx` — service center management page
-- `lib/db.ts` — `serviceCenter` CRUD methods added (findUnique, create, updateVehicle reuse)
+- `lib/db.ts` — Prisma `findCurrent` and `updateCurrent` methods use the service-center table
 
 **Service center schema** (from `database/schema.sql`):
 ```sql
@@ -201,6 +200,7 @@ CREATE TABLE service_center (
     phone VARCHAR(20) NOT NULL,
     email VARCHAR(255) NOT NULL,
     operating_hours VARCHAR(100) DEFAULT 'Mon-Sat 8:00 AM - 6:00 PM',
+    time_zone VARCHAR(64),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
@@ -208,24 +208,24 @@ CREATE TABLE service_center (
 
 **Prisma model** (`prisma/schema.prisma`):
 - `ServiceCenter` maps directly to SQL table
-- Fields: id, name, address, phone, email, operatingHours, createdAt, updatedAt
+- Fields: id, name, address, phone, email, operatingHours, timeZone, createdAt, updatedAt
 - Relations: mechanics (Mechanic[]), bookings (Booking[])
 
-**Status**: Admin can view service center info. Edit functionality present but data is mocked in `lib/db.ts`.
+**Status**: Admin-only page reads the current center from Prisma/PostgreSQL and edits name, address, phone, email, and legacy operating-hours text. A server action rechecks the signed-in ADMIN role, validates fields, and updates only the current center's editable columns; ID, timezone, and normalized weekly schedule are protected. Schedule settings remain on the separate schedule page. PostgreSQL connectivity was not available during this task's verification.
 
 ---
 
 ### Phase 4B — Mechanic Management
 
-**Mechanic listing** for admin-only access:
+**Mechanic CRUD** for admin-only access:
 
-- **Mechanic listing** — `/dashboard/admin/mechanics` — displays mechanic list
-- **Admin-only access** — Proxy enforces ADMIN role
+- **Mechanic management** — `/dashboard/admin/mechanics` — creates, lists, edits, deactivates, and safely deletes mechanics
+- **Admin-only access** — Proxy, server page, management service, and every mutation enforce ADMIN role
 - **Service-center association** — mechanics linked to existing service center via `service_center_id`
 
 **Key implementation**:
-- `app/dashboard/admin/mechanics/page.tsx` — admin mechanic management page
-- `lib/db.ts` — `mechanic` CRUD methods added (findUnique, create, update, delete)
+- `app/dashboard/admin/mechanics/page.tsx` — Prisma-backed mechanic management page
+- `lib/db.ts` — center-scoped Prisma list/create/update and history-preserving delete-or-deactivate operations
 
 **Mechanic schema** (from `database/schema.sql`):
 ```sql
@@ -247,16 +247,10 @@ CREATE TABLE mechanics (
 - Relations: serviceCenter (ServiceCenter), bookings (Booking[]), services (Service[])
 
 **Current functionality**:
-- Mechanic listing displays name, specialization, phone, status
-- "Add Mechanic" link navigates to create flow
-- Admin authorization enforced via Proxy
-- Service center association preserved
-
-**lib/db.ts mechanic methods**:
-- `findUnique({ id })` — returns mock mechanic data
-- `create({ data })` — creates mechanic associated with service center
-- `update({ where, data })` — updates mechanic fields
-- `delete({ where })` — deletes mechanic (placeholder, respects FK constraints)
+- Listing, creation, and updates use Prisma and are scoped to the configured single service center; the server derives the center ID and ignores client-supplied relationship identifiers.
+- Name, specialization, phone, and active status are validated server-side against schema limits. Missing records and database errors have safe responses; pages include loading, empty, and error states.
+- A delete request hard-deletes only a mechanic with no booking or service references. Referenced mechanics are marked inactive to retain historical links; the transaction locks the service-center row and mechanic row to serialize with assignments and protect against concurrent references.
+- Live database connectivity was not verified because `DATABASE_URL` is unavailable in this environment.
 
 ---
 
@@ -580,7 +574,11 @@ PLANNED        — In roadmap but not started
 Phase 4C.1–4C.12 booking lifecycle implementation is complete. The next official roadmap module is **Phase 6 — Service Records & Parts**, which remains NOT STARTED.
 
 - Customers can submit a new booking request for their own vehicle and an existing service type. Requests are created with `PENDING` status.
-- Booking creation uses Prisma against PostgreSQL. The legacy user, vehicle, service-center, and mechanic methods in `lib/db.ts` remain mock placeholders; booking creation itself is not in-memory.
+- Booking creation and Phase 4 service-center/mechanic management use Prisma against PostgreSQL. Legacy user and vehicle adapters in `lib/db.ts` still contain placeholders; booking and management writes do not use in-memory data.
+- Admin service-center management at `/dashboard/admin/service-center` reads the configured record from Prisma and saves validated name, address, phone, email, and operating-hours values. The server action checks the signed session role and updates only the current center's allowed columns; it cannot change the center ID, timezone, or structured schedule. The appointment scheduling page remains separate and unchanged.
+- Admin mechanic management at `/dashboard/admin/mechanics` lists actual mechanics for the configured center and provides create, edit, active-status, and delete/deactivate flows. Server actions validate fields, derive the service-center ID from the database, and scope writes to it. The protected page/action path enforces ADMIN regardless of Proxy visibility.
+- Mechanic delete preserves historical booking/service links: unreferenced records are deleted; records referenced by bookings or services are deactivated instead. Persistence is serialized with scheduling/assignment through the service-center lock, and the mechanic row is locked before dependency checks.
+- Phase 4 management tests use mock repositories to verify input, role, scope, and history-preservation logic; they do not verify PostgreSQL connectivity. Live connection was not tested because `DATABASE_URL`, `.env`, and `prisma/.env` are absent.
 - A live PostgreSQL connection was not available during verification (`DATABASE_URL` and `.env` were absent), so database runtime connectivity was not verified.
 - The customer booking list is server rendered and queries Prisma/PostgreSQL with a `customerId` filter derived from the signed session. It shows booking ID, vehicle, service, requested date, status, and creation date.
 - The customer booking details page queries by both booking ID and customer ID from the signed session. It shows schema-backed booking, vehicle, service type, service center, dates, status, and optional notes. A mismatched customer/booking pair returns not found.
@@ -635,7 +633,9 @@ Verification history:
 - Phase 4C.12 verification (2026-10-12): `npx prisma generate` passed; `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0; `/dashboard/provider/bookings/in-progress` emitted as dynamic); `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 130/130. The sandboxed build first failed because Windows denied creation of Next.js's Prisma junction under `.next`; the permitted retry passed. PostgreSQL connectivity and the Phase 4C.10 migration were not verified because `DATABASE_URL` and `.env` are absent. The development-only GHSA-vfj7-8cjw-p6xm advisory remains outstanding.
 - Phase 4C.12 files changed: `app/dashboard/provider/bookings/actions.ts`, `app/dashboard/provider/bookings/confirmed/page.tsx`, new `app/dashboard/provider/bookings/in-progress/page.tsx`, new `app/dashboard/provider/bookings/in-progress/CompleteServiceForm.tsx`, `lib/booking/booking-service.ts`, `lib/booking/booking-service.test.cjs`, `lib/db.ts`, and this status document. No schema change was needed because `COMPLETED` already exists in SQL and Prisma.
 - Previous checkpoint audit: findings were reduced from 19 to 1 critical Next.js package entry; this historical result was superseded by the Next.js 16 migration documented in Section 16.
-- PostgreSQL: connection was not attempted because the current process environment has no `DATABASE_URL`; no credentials were created or printed.
+- PostgreSQL: connection was not attempted because the current process environment has no `DATABASE_URL`, `.env`, or `prisma/.env`; no credentials were created or printed.
+- Phase 4 management verification (2026-10-12): `npx prisma generate` passed; `npx tsc --noEmit` passed; `npm run lint` passed; `npm run build` passed (Next.js 16.4.0; `/dashboard/admin/service-center`, `/dashboard/admin/service-center/schedule`, and `/dashboard/admin/mechanics` emitted as dynamic routes); `node --test lib/admin/management.test.cjs` passed 13/13; `node --test lib/booking/booking-service.test.cjs lib/auth/jwt.test.cjs` passed 130/130. The first sandboxed build failed only because Windows denied creation of Next.js's Prisma junction under `.next`; the permitted retry passed. Live PostgreSQL is UNVERIFIED (`DATABASE_URL`, `.env`, and `prisma/.env` are absent). No schema changes or migrations were required. The development-only GHSA-vfj7-8cjw-p6xm remains outstanding.
+- Phase 4 management files changed: `app/dashboard/admin/service-center/page.tsx`, new `service-center/actions.ts`, `ServiceCenterForm.tsx`, `loading.tsx`, `app/dashboard/admin/mechanics/page.tsx`, new `mechanics/actions.ts`, `MechanicManagementForms.tsx`, `loading.tsx`, `lib/admin/management.ts`, `lib/admin/session.ts`, `lib/admin/management.test.cjs`, `lib/db.ts`, `PROJECT_STATUS.md`, and `README.md`. The actual final Git checkpoint is the Phase 4 management commit recorded in Git history and in the task handoff.
 
 ---
 
@@ -796,7 +796,7 @@ The project operates as a single service center model. No multi-location support
 ## 16. KNOWN LIMITATIONS / TECHNICAL DEBT
 
 ### Mock/In-Memory DB Behavior
-Most legacy methods in `lib/db.ts` remain placeholders that return mock data. Phase 4C.1 booking catalog lookups and booking creation use Prisma/PostgreSQL. The database connection was unavailable during implementation verification, so live persistence still needs an environment with `DATABASE_URL` and the SQL schema applied.
+Legacy user and vehicle methods in `lib/db.ts` remain placeholders. Booking, service-center, and mechanic workflows use Prisma/PostgreSQL. Service-center/mechanic persistence is implemented, but live connectivity was unavailable for this task, so runtime writes remain UNVERIFIED until tested with a configured database and applied SQL schema/migrations.
 
 ### Incomplete Test Coverage
 The repository has no configured Jest/React Testing Library/Playwright packages or scripts. Phases 4C.1–4C.3 include focused tests using Node's built-in test runner; broad application test coverage remains incomplete.

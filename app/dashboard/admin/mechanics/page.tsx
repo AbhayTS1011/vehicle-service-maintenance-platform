@@ -1,48 +1,39 @@
-// =====================================================================
-// Mechanic Management Page - Admin Dashboard
-// =====================================================================
-
-import { getCurrentUserFromHeaders } from '@/lib/auth/session'
+import { UserRole } from '@prisma/client'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import { db } from '@/lib/db'
+import { getSessionActor } from '@/lib/admin/session'
+import { listMechanics } from '@/lib/admin/management'
+import { MechanicManagementForms } from './MechanicManagementForms'
 
-export default function MechanicManagementPage() {
-  const mechanics = [
-    {
-      id: 1,
-      name: 'John Smith',
-      specialization: 'General Repair',
-      phone: '+1-555-0123',
-      isActive: true,
-    },
-    {
-      id: 2,
-      name: 'Maria Garcia',
-      specialization: 'Electrical',
-      phone: '+1-555-0124',
-      isActive: true,
-    },
-  ]
+export default async function MechanicManagementPage() {
+  const actor = await getSessionActor()
+  if (!actor) redirect('/login')
+  if (actor.role !== UserRole.ADMIN) redirect('/dashboard')
+
+  const result = await listMechanics(actor, {
+    findCurrentServiceCenterId: () => db.mechanic.findCurrentServiceCenterId(),
+    findMany: (serviceCenterId) => db.mechanic.findMany(serviceCenterId),
+  })
 
   return (
     <main className="main-hero" style={{ padding: '2rem' }}>
-      <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+      <section style={{ maxWidth: '900px', margin: '0 auto', textAlign: 'left' }}>
         <div style={{ marginBottom: '2rem' }}>
           <span className="badge">Mechanic Management</span>
-          <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>Mechanics</h1>
-          <p style={{ color: '#94a3b8' }}>
-            Manage service center mechanics below.
-          </p>
+          <h1 style={{ fontSize: '2rem', margin: '1rem 0' }}>Mechanics</h1>
+          <p style={{ color: '#94a3b8' }}>Manage mechanics assigned to the configured service center.</p>
+          <p style={{ marginTop: '1rem' }}><Link href="/dashboard/admin/service-center" style={{ color: '#93c5fd' }}>Manage service-center details</Link></p>
         </div>
-
-        <div style={{ marginBottom: '1.5rem' }}>
-          <a href="/dashboard/admin/mechanics/new" style={{ marginRight: '1rem', padding: '0.5rem 1rem', backgroundColor: '#3b82f6', color: 'white', borderRadius: '0.375rem', textDecoration: 'none', fontSize: '0.875rem' }}>
-            Add Mechanic
-          </a>
-        </div>
-
-        <p>Total mechanics: {mechanics.length}</p>
-      </div>
+        {!result.success ? (
+          <p role="alert">{result.error}</p>
+        ) : (
+          <>
+            <p>Total mechanics: {result.value.length}</p>
+            <MechanicManagementForms mechanics={result.value} />
+          </>
+        )}
+      </section>
     </main>
   )
 }

@@ -1,10 +1,12 @@
 // =====================================================================
-// Prisma persistence layer for booking workflows, with legacy mock adapters
-// retained for management domains that have not yet migrated to PostgreSQL.
+// Prisma persistence for booking, service-center, and mechanic workflows;
+// legacy user and vehicle adapters remain placeholders pending their migration.
 // =====================================================================
 
 import { BookingStatus, PrismaClient, type Prisma } from '@prisma/client'
 import type { ProviderConfirmedBookingsQuery, ProviderInProgressBookingsQuery, ProviderPendingBookingsQuery } from './booking/booking-service'
+import type { ServiceCenterUpdate, MechanicWrite } from './admin/management'
+import { deleteMechanicRecord } from './admin/management'
 import { availableAppointmentSlots, dateInTimeZone, type ScheduledInterval, type WeeklyOpening } from './booking/scheduling'
 
 const prisma = new PrismaClient()
@@ -192,27 +194,18 @@ export const db = {
   },
   serviceCenter: {
     async findUnique({ where }: { where: { id: number } }) {
-      // In a Prisma implementation, this would query PostgreSQL
-      // For now, return mock service center data
-      return {
-        id: 1,
-        name: "Apex Auto Care Center",
-        address: "123 Mechanic Street, Auto City, AC 12345",
-        phone: "+1-555-0199",
-        email: "support@apexautocare.com",
-        operatingHours: "Mon-Sat 8:00 AM - 6:00 PM",
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
+      return prisma.serviceCenter.findUnique({ where })
     },
-    async create({ data }: { data: any }) {
-      // Placeholder - service center is pre-configured
-      return { id: 1, ...data, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    async findCurrent() {
+      return prisma.serviceCenter.findFirst({ orderBy: { id: 'asc' } })
     },
-    async updateVehicle({ where, data }: { where: { id: number }; data: any }) {
-      // For service center, we use updateVehicle with service center data
-      // or we can implement a specific update method
-      return { id: where.id, ...data, updatedAt: new Date().toISOString() }
+    async updateCurrent(data: ServiceCenterUpdate) {
+      const current = await prisma.serviceCenter.findFirst({ select: { id: true }, orderBy: { id: 'asc' } })
+      if (!current) return null
+      return prisma.serviceCenter.update({
+        where: { id: current.id },
+        data,
+      })
     },
   },
   booking: {
@@ -494,48 +487,58 @@ export const db = {
     },
   },
   mechanic: {
-    async findUnique({ where }: { where: { id: number } }) {
-      // In a Prisma implementation, this would query PostgreSQL
-      // For now, return mock mechanic data
-      return {
-        id: 1,
-        serviceCenterId: 1,
-        name: "John Smith",
-        specialization: "General Repair",
-        phone: "+1-555-0123",
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
+    async findCurrentServiceCenterId() {
+      const center = await prisma.serviceCenter.findFirst({ select: { id: true }, orderBy: { id: 'asc' } })
+      return center?.id ?? null
     },
-    async create({ data }: { data: any }) {
-      // Placeholder - create mechanic associated with service center
-      return {
-        id: 1,
-        serviceCenterId: Number(data.serviceCenterId) || 1,
-        name: data.name,
-        specialization: data.specialization || '',
-        phone: data.phone || '',
-        isActive: data.isActive !== false,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }
+    async findMany(serviceCenterId: number) {
+      return prisma.mechanic.findMany({
+        where: { serviceCenterId },
+        select: {
+          id: true,
+          name: true,
+          specialization: true,
+          phone: true,
+          isActive: true,
+          _count: { select: { bookings: true, services: true } },
+        },
+        orderBy: [{ isActive: 'desc' }, { name: 'asc' }, { id: 'asc' }],
+      })
     },
-    async update({ where, data }: { where: { id: number }; data: any }) {
-      // Placeholder - update mechanic
-      return {
-        id: where.id,
-        serviceCenterId: data.serviceCenterId ?? 1,
-        name: data.name,
-        specialization: data.specialization ?? '',
-        phone: data.phone ?? '',
-        isActive: data.isActive ?? true,
-        updatedAt: new Date().toISOString(),
-      }
+    async create(serviceCenterId: number, data: MechanicWrite) {
+      return prisma.mechanic.create({ data: { ...data, serviceCenterId } })
     },
-    async delete({ where }: { where: { id: number } }) {
-      // Placeholder - delete mechanic
-      return { id: where.id, deleted: true }
+    async update(serviceCenterId: number, id: number, data: MechanicWrite) {
+      const result = await prisma.mechanic.updateMany({ where: { id, serviceCenterId }, data })
+      return result.count === 1
+    },
+    async deleteOrDeactivate(serviceCenterId: number, id: number): Promise<'deleted' | 'deactivated' | null> {
+      return prisma.$transaction(async (transaction) => {
+        return deleteMechanicRecord(serviceCenterId, id, {
+          lockServiceCenter: (centerId) => lockSchedulingCenter(transaction, centerId).then(() => undefined),
+          exists: async (centerId, mechanicId) => {
+            const rows = await transaction.$queryRaw<Array<{ id: number }>>`
+              SELECT id FROM mechanics
+              WHERE id = ${mechanicId} AND service_center_id = ${centerId}
+              FOR UPDATE
+            `
+            return rows.length === 1
+          },
+          hasHistory: async (mechanicId) => {
+            const [bookings, services] = await Promise.all([
+              transaction.booking.count({ where: { mechanicId } }),
+              transaction.service.count({ where: { mechanicId } }),
+            ])
+            return bookings + services > 0
+          },
+          deactivate: async (mechanicId) => {
+            await transaction.mechanic.update({ where: { id: mechanicId }, data: { isActive: false } })
+          },
+          delete: async (mechanicId) => {
+            await transaction.mechanic.delete({ where: { id: mechanicId } })
+          },
+        })
+      })
     },
   },
 }

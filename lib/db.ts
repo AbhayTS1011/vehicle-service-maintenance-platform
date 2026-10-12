@@ -332,6 +332,65 @@ export const db = {
         return { created: true as const }
       })
     },
+    async reschedulePendingForCustomer(
+      bookingId: number,
+      customerId: number,
+      expectedScheduledDate: Date,
+      scheduledDate: Date,
+      notes: string | null,
+    ) {
+      return prisma.$transaction(async (transaction) => {
+        const initialBooking = await transaction.booking.findFirst({
+          where: { id: bookingId, customerId },
+          select: { serviceCenterId: true },
+        })
+        if (!initialBooking) return { updated: false as const, reason: 'not_found' as const }
+        await lockSchedulingCenter(transaction, initialBooking.serviceCenterId)
+        const booking = await transaction.booking.findFirst({
+          where: { id: bookingId, customerId },
+          select: { status: true, serviceCenterId: true, serviceTypeId: true, scheduledDate: true },
+        })
+        if (!booking) return { updated: false as const, reason: 'not_found' as const }
+        if (booking.status !== BookingStatus.PENDING) return { updated: false as const, reason: 'invalid_state' as const }
+        if (booking.scheduledDate.getTime() !== expectedScheduledDate.getTime()) {
+          return { updated: false as const, reason: 'stale' as const }
+        }
+        const serviceType = await transaction.serviceType.findUnique({
+          where: { id: booking.serviceTypeId },
+          select: { estimatedDurationMinutes: true },
+        })
+        if (!serviceType) return { updated: false as const, reason: 'invalid_state' as const }
+        const center = await transaction.serviceCenter.findUnique({
+          where: { id: booking.serviceCenterId },
+          select: { timeZone: true },
+        })
+        if (!center?.timeZone) return { updated: false as const, reason: 'configuration' as const }
+        const date = dateInTimeZone(scheduledDate, center.timeZone)
+        const availability = await availableSlotsWithTransaction(
+          transaction,
+          booking.serviceCenterId,
+          date,
+          serviceType.estimatedDurationMinutes,
+          bookingId,
+        )
+        if (!availability.configured) return { updated: false as const, reason: 'configuration' as const }
+        if (scheduledDate <= new Date() || !availability.slots.some((slot) => slot.getTime() === scheduledDate.getTime())) {
+          return { updated: false as const, reason: 'unavailable' as const }
+        }
+        const result = await transaction.booking.updateMany({
+          where: { id: bookingId, customerId, status: BookingStatus.PENDING, scheduledDate: expectedScheduledDate },
+          data: { scheduledDate, notes },
+        })
+        if (result.count === 1) return { updated: true as const }
+        const latest = await transaction.booking.findFirst({
+          where: { id: bookingId, customerId },
+          select: { id: true, status: true },
+        })
+        if (!latest) return { updated: false as const, reason: 'not_found' as const }
+        if (latest.status === BookingStatus.PENDING) return { updated: false as const, reason: 'stale' as const }
+        return { updated: false as const, reason: 'invalid_state' as const }
+      })
+    },
     async confirmPendingForProvider(bookingId: number) {
       const result = await prisma.booking.updateMany({
         where: { id: bookingId, status: 'PENDING' },
@@ -382,10 +441,11 @@ export const db = {
           status: true,
           scheduledDate: true,
           createdAt: true,
+          serviceTypeId: true,
           notes: true,
           vehicle: { select: { make: true, model: true, licensePlate: true } },
           serviceType: { select: { name: true } },
-          serviceCenter: { select: { name: true, address: true, phone: true, operatingHours: true } },
+          serviceCenter: { select: { name: true, address: true, phone: true, operatingHours: true, timeZone: true } },
         },
       })
     },

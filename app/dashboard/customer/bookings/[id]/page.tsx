@@ -6,6 +6,7 @@ import { verifyToken } from '@/lib/auth/jwt'
 import { db } from '@/lib/db'
 import { getCustomerBookingDetails } from '@/lib/booking/booking-service'
 import { CancelBookingForm } from '../CancelBookingForm'
+import { RescheduleBookingForm } from './RescheduleBookingForm'
 
 const dateTime = new Intl.DateTimeFormat('en-IN', {
   dateStyle: 'medium',
@@ -69,7 +70,18 @@ export default async function CustomerBookingDetailsPage({
                 {result.booking.serviceCenter.operatingHours && <><br />{result.booking.serviceCenter.operatingHours}</>}
               </dd>
             </dl>
-            {result.booking.status === 'PENDING' && <CancelBookingForm bookingId={result.booking.id} />}
+            {result.booking.status === 'PENDING' && (
+              <>
+                <RescheduleBookingForm
+                  bookingId={result.booking.id}
+                  serviceTypeId={result.booking.serviceTypeId}
+                  scheduledDate={result.booking.scheduledDate}
+                  notes={result.booking.notes}
+                  timeZone={result.booking.serviceCenter.timeZone}
+                />
+                <CancelBookingForm bookingId={result.booking.id} />
+              </>
+            )}
           </>
         )}
       </section>

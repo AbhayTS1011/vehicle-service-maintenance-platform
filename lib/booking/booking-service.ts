@@ -223,6 +223,70 @@ export type BookingRepository = {
 
 export type BookingResult = { success: true } | { success: false; error: string }
 
+export type CustomerBookingUpdateResult =
+  | { success: true }
+  | { success: false; reason: 'unauthenticated' | 'forbidden' | 'invalid_input' | 'not_found' | 'invalid_state' | 'stale' | 'unavailable' | 'configuration' | 'error'; error: string }
+
+export type CustomerBookingUpdateRepository = {
+  reschedulePending: (bookingId: number, customerId: number, expectedScheduledDate: Date, scheduledDate: Date, notes: string | null) => Promise<
+    { updated: true } | { updated: false; reason: 'not_found' | 'invalid_state' | 'stale' | 'unavailable' | 'configuration' }
+  >
+}
+
+export async function updateCustomerBooking(
+  actor: BookingActor,
+  bookingInput: unknown,
+  expectedScheduledDateInput: unknown,
+  scheduledDateInput: unknown,
+  notesInput: unknown,
+  repository: CustomerBookingUpdateRepository,
+): Promise<CustomerBookingUpdateResult> {
+  if (!actor || !Number.isSafeInteger(actor.id) || actor.id <= 0) {
+    return { success: false, reason: 'unauthenticated', error: 'Please sign in to update your booking.' }
+  }
+  if (actor.role !== UserRole.CUSTOMER && actor.role !== UserRole.FLEET_MANAGER) {
+    return { success: false, reason: 'forbidden', error: 'You do not have permission to update customer bookings.' }
+  }
+  const bookingId = typeof bookingInput === 'number'
+    ? bookingInput
+    : typeof bookingInput === 'string' && /^\d+$/.test(bookingInput)
+      ? Number(bookingInput)
+      : Number.NaN
+  if (!Number.isSafeInteger(bookingId) || bookingId <= 0 || typeof expectedScheduledDateInput !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(expectedScheduledDateInput) ||
+      typeof scheduledDateInput !== 'string' ||
+      !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(scheduledDateInput) ||
+      (notesInput !== null && notesInput !== undefined && typeof notesInput !== 'string')) {
+    return { success: false, reason: 'invalid_input', error: 'Choose a valid booking time and enter plain-text notes.' }
+  }
+  const expectedScheduledDate = new Date(expectedScheduledDateInput)
+  const scheduledDate = new Date(scheduledDateInput)
+  if (Number.isNaN(expectedScheduledDate.getTime()) || Number.isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+    return { success: false, reason: 'invalid_input', error: 'Choose a future appointment time.' }
+  }
+  if (typeof notesInput === 'string' && notesInput.length > 5000) {
+    return { success: false, reason: 'invalid_input', error: 'Notes must be 5,000 characters or fewer.' }
+  }
+
+  try {
+    const result = await repository.reschedulePending(
+      bookingId,
+      actor.id,
+      expectedScheduledDate,
+      scheduledDate,
+      typeof notesInput === 'string' && notesInput.trim() ? notesInput.trim() : null,
+    )
+    if (result.updated) return { success: true }
+    if (result.reason === 'not_found') return { success: false, reason: 'not_found', error: 'Booking not found.' }
+    if (result.reason === 'invalid_state') return { success: false, reason: 'invalid_state', error: 'Only pending bookings can be edited or rescheduled.' }
+    if (result.reason === 'stale') return { success: false, reason: 'stale', error: 'This booking changed since you opened it. Refresh the page and try again.' }
+    if (result.reason === 'configuration') return { success: false, reason: 'configuration', error: 'Appointment scheduling is not configured. Please contact the service center.' }
+    return { success: false, reason: 'unavailable', error: 'That appointment time is no longer available. Choose another time.' }
+  } catch {
+    return { success: false, reason: 'error', error: 'Your booking could not be updated. Please try again.' }
+  }
+}
+
 export type AvailableSlotsResult =
   | { success: true; configured: boolean; slots: Date[] }
   | { success: false; error: string }
@@ -272,8 +336,9 @@ export type CustomerBookingListResult =
   | { success: false; error: string }
 
 export type CustomerBookingDetails = CustomerBookingSummary & {
+  serviceTypeId: number
   notes: string | null
-  serviceCenter: { name: string; address: string; phone: string; operatingHours: string | null }
+  serviceCenter: { name: string; address: string; phone: string; operatingHours: string | null; timeZone: string | null }
 }
 
 export type CustomerBookingDetailsResult =

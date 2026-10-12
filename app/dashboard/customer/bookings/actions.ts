@@ -1,6 +1,7 @@
 'use server'
 
 import { cookies } from 'next/headers'
+import { revalidatePath } from 'next/cache'
 import { UserRole } from '@prisma/client'
 import { db } from '@/lib/db'
 import { verifyVehicleOwnership } from '@/lib/auth/permissions'
@@ -9,7 +10,9 @@ import {
   cancelCustomerBooking,
   createCustomerBooking,
   listAvailableAppointmentSlots,
+  updateCustomerBooking,
   type BookingCancellationResult,
+  type CustomerBookingUpdateResult,
   type BookingResult,
 } from '@/lib/booking/booking-service'
 
@@ -59,4 +62,27 @@ export async function getAvailableSlots(date: string, serviceTypeId: string) {
     availableAppointmentSlots: (requestedDate, requestedServiceTypeId) =>
       db.bookingCatalog.availableAppointmentSlots(requestedDate, requestedServiceTypeId),
   })
+}
+
+export async function updateBooking(_previous: CustomerBookingUpdateResult | null, formData: FormData): Promise<CustomerBookingUpdateResult> {
+  const token = (await cookies()).get('apex_session')?.value
+  const payload = token ? await verifyToken(token) : null
+  const role = payload?.role as UserRole | undefined
+  const actor = payload?.userId && role ? { id: payload.userId, role } : null
+  try {
+    const result = await updateCustomerBooking(actor, formData.get('bookingId'), formData.get('expectedScheduledDate'), formData.get('scheduledDate'), formData.get('notes'), {
+      reschedulePending: (bookingId, customerId, expectedDate, scheduledDate, notes) =>
+        db.booking.reschedulePendingForCustomer(bookingId, customerId, expectedDate, scheduledDate, notes),
+    })
+    if (result.success) {
+      revalidatePath('/dashboard/customer/bookings')
+      const bookingId = formData.get('bookingId')
+      if (typeof bookingId === 'string' && /^\d+$/.test(bookingId)) {
+        revalidatePath(`/dashboard/customer/bookings/${bookingId}`)
+      }
+    }
+    return result
+  } catch {
+    return { success: false, reason: 'error', error: 'Your booking could not be updated. Please try again.' }
+  }
 }

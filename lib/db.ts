@@ -6,10 +6,73 @@
 // In-memory store for development and testing
 // Data is lost on server restart - suitable for Phase 3 & 4 vehicle/service center management
 
-import { BookingStatus, PrismaClient } from '@prisma/client'
+import { BookingStatus, PrismaClient, type Prisma } from '@prisma/client'
 import type { ProviderConfirmedBookingsQuery, ProviderPendingBookingsQuery } from './booking/booking-service'
+import { availableAppointmentSlots, dateInTimeZone, type ScheduledInterval, type WeeklyOpening } from './booking/scheduling'
 
 const prisma = new PrismaClient()
+
+type BookingTransaction = Prisma.TransactionClient
+
+async function lockSchedulingCenter(transaction: BookingTransaction, serviceCenterId: number) {
+  await transaction.$queryRaw<Array<{ id: number }>>`
+    SELECT id FROM service_center WHERE id = ${serviceCenterId} FOR UPDATE
+  `
+}
+
+async function schedulingInputs(transaction: BookingTransaction, serviceCenterId: number, date: string, omitBookingId?: number) {
+  const center = await transaction.serviceCenter.findUnique({
+    where: { id: serviceCenterId },
+    select: { id: true, timeZone: true },
+  })
+  if (!center?.timeZone) return null
+  const weeklyHours = await transaction.$queryRaw<WeeklyOpening[]>`
+    SELECT day_of_week AS "dayOfWeek",
+      to_char(opens_at, 'HH24:MI') AS "opensAt",
+      to_char(closes_at, 'HH24:MI') AS "closesAt"
+    FROM service_center_hours
+    WHERE service_center_id = ${serviceCenterId}
+    ORDER BY day_of_week, opens_at
+  `
+  const serviceCenterDate = new Date(`${date}T00:00:00.000Z`)
+  const lowerBound = new Date(serviceCenterDate.getTime() - 24 * 60 * 60 * 1000)
+  const upperBound = new Date(serviceCenterDate.getTime() + 48 * 60 * 60 * 1000)
+  const existingAppointments = await transaction.$queryRaw<Array<{ start: Date; end: Date }>>`
+    SELECT booking.scheduled_date AS start,
+      booking.scheduled_date + make_interval(mins => service_type.estimated_duration_minutes) AS "end"
+    FROM bookings AS booking
+    JOIN service_types AS service_type ON service_type.id = booking.service_type_id
+    WHERE booking.service_center_id = ${serviceCenterId}
+      AND booking.status IN ('PENDING'::booking_status, 'CONFIRMED'::booking_status, 'IN_PROGRESS'::booking_status)
+      AND booking.scheduled_date < ${upperBound}
+      AND booking.scheduled_date + make_interval(mins => service_type.estimated_duration_minutes) > ${lowerBound}
+      AND (${omitBookingId ?? null}::INTEGER IS NULL OR booking.id <> ${omitBookingId ?? null})
+  `
+  const activeMechanicCount = await transaction.mechanic.count({ where: { serviceCenterId, isActive: true } })
+  return { center, weeklyHours, existingAppointments: existingAppointments as ScheduledInterval[], activeMechanicCount }
+}
+
+async function availableSlotsWithTransaction(
+  transaction: BookingTransaction,
+  serviceCenterId: number,
+  date: string,
+  durationMinutes: number,
+  omitBookingId?: number,
+) {
+  const inputs = await schedulingInputs(transaction, serviceCenterId, date, omitBookingId)
+  if (!inputs?.center.timeZone) return { configured: false as const, slots: [] as Date[] }
+  return {
+    configured: true as const,
+    slots: availableAppointmentSlots({
+      date,
+      durationMinutes,
+      timeZone: inputs.center.timeZone,
+      weeklyHours: inputs.weeklyHours,
+      activeMechanicCount: inputs.activeMechanicCount,
+      existingAppointments: inputs.existingAppointments,
+    }),
+  }
+}
 
 export const db = {
   // Booking creation uses the SQL-first PostgreSQL database through Prisma.
@@ -46,6 +109,59 @@ export const db = {
         orderBy: { id: 'asc' },
       })
       return center?.id ?? null
+    },
+    async schedulingSettings() {
+      const center = await prisma.serviceCenter.findFirst({
+        select: { id: true, name: true, timeZone: true },
+        orderBy: { id: 'asc' },
+      })
+      if (!center) return null
+      const weeklyHours = await prisma.$queryRaw<WeeklyOpening[]>`
+        SELECT day_of_week AS "dayOfWeek",
+          to_char(opens_at, 'HH24:MI') AS "opensAt",
+          to_char(closes_at, 'HH24:MI') AS "closesAt"
+        FROM service_center_hours
+        WHERE service_center_id = ${center.id}
+        ORDER BY day_of_week, opens_at
+      `
+      return { ...center, weeklyHours }
+    },
+    async saveSchedulingSettings(timeZone: string, weeklyHours: WeeklyOpening[]) {
+      return prisma.$transaction(async (transaction) => {
+        const center = await transaction.serviceCenter.findFirst({
+          select: { id: true },
+          orderBy: { id: 'asc' },
+        })
+        if (!center) return false
+        await lockSchedulingCenter(transaction, center.id)
+        await transaction.serviceCenter.update({ where: { id: center.id }, data: { timeZone } })
+        await transaction.$executeRaw`DELETE FROM service_center_hours WHERE service_center_id = ${center.id}`
+        for (const hours of weeklyHours) {
+          await transaction.$executeRaw`
+            INSERT INTO service_center_hours (service_center_id, day_of_week, opens_at, closes_at)
+            VALUES (${center.id}, ${hours.dayOfWeek}, ${hours.opensAt}::TIME, ${hours.closesAt}::TIME)
+          `
+        }
+        return true
+      })
+    },
+    async availableAppointmentSlots(date: string, serviceTypeId: number) {
+      const center = await prisma.serviceCenter.findFirst({ select: { id: true }, orderBy: { id: 'asc' } })
+      if (!center) return { configured: false, slots: [] as Date[] }
+      const serviceType = await prisma.serviceType.findUnique({
+        where: { id: serviceTypeId },
+        select: { estimatedDurationMinutes: true },
+      })
+      if (!serviceType) return { configured: true, slots: [] as Date[] }
+      return prisma.$transaction(async (transaction) => {
+        const result = await availableSlotsWithTransaction(
+          transaction,
+          center.id,
+          date,
+          serviceType.estimatedDurationMinutes,
+        )
+        return { configured: result.configured, slots: result.slots.filter((slot) => slot > new Date()) }
+      })
     },
   },
   user: {
@@ -122,20 +238,99 @@ export const db = {
       })
     },
     async assignMechanicToConfirmedBooking(bookingId: number, mechanicId: number, serviceCenterId: number) {
-      const rows = await prisma.$queryRaw<Array<{ id: number }>>`
-        UPDATE bookings AS booking
-        SET mechanic_id = ${mechanicId}
-        FROM mechanics AS mechanic
-        WHERE booking.id = ${bookingId}
-          AND booking.status = 'CONFIRMED'::booking_status
-          AND booking.mechanic_id IS NULL
-          AND booking.service_center_id = ${serviceCenterId}
-          AND mechanic.id = ${mechanicId}
-          AND mechanic.is_active IS TRUE
-          AND mechanic.service_center_id = booking.service_center_id
-        RETURNING booking.id
-      `
-      return rows.length
+      return prisma.$transaction(async (transaction) => {
+        await lockSchedulingCenter(transaction, serviceCenterId)
+        const booking = await transaction.booking.findUnique({
+          where: { id: bookingId },
+          select: { status: true, mechanicId: true, serviceCenterId: true, scheduledDate: true, serviceTypeId: true },
+        })
+        if (!booking || booking.status !== BookingStatus.CONFIRMED || booking.mechanicId !== null ||
+            booking.serviceCenterId !== serviceCenterId) return 0
+        const serviceType = await transaction.serviceType.findUnique({
+          where: { id: booking.serviceTypeId },
+          select: { estimatedDurationMinutes: true },
+        })
+        if (!serviceType) return 0
+        const scheduledEnd = new Date(booking.scheduledDate.getTime() + serviceType.estimatedDurationMinutes * 60_000)
+        const conflicts = await transaction.$queryRaw<Array<{ id: number }>>`
+          SELECT other_booking.id
+          FROM bookings AS other_booking
+          JOIN service_types AS other_service ON other_service.id = other_booking.service_type_id
+          WHERE other_booking.service_center_id = ${serviceCenterId}
+            AND other_booking.mechanic_id = ${mechanicId}
+            AND other_booking.id <> ${bookingId}
+            AND other_booking.status IN ('PENDING'::booking_status, 'CONFIRMED'::booking_status, 'IN_PROGRESS'::booking_status)
+            AND other_booking.scheduled_date < ${scheduledEnd}
+            AND other_booking.scheduled_date + make_interval(mins => other_service.estimated_duration_minutes) > ${booking.scheduledDate}
+          LIMIT 1
+        `
+        if (conflicts.length > 0) return 2
+        const rows = await transaction.$queryRaw<Array<{ id: number }>>`
+          UPDATE bookings AS booking
+          SET mechanic_id = ${mechanicId}
+          FROM mechanics AS mechanic
+          WHERE booking.id = ${bookingId}
+            AND booking.status = 'CONFIRMED'::booking_status
+            AND booking.mechanic_id IS NULL
+            AND booking.service_center_id = ${serviceCenterId}
+            AND mechanic.id = ${mechanicId}
+            AND mechanic.is_active IS TRUE
+            AND mechanic.service_center_id = booking.service_center_id
+          RETURNING booking.id
+        `
+        return rows.length
+      })
+    },
+    async createScheduledBooking(data: {
+      customerId: number
+      vehicleId: number
+      serviceTypeId: number
+      serviceCenterId: number
+      scheduledDate: Date
+      notes?: string
+    }) {
+      return prisma.$transaction(async (transaction) => {
+        const initialCenter = await transaction.serviceCenter.findUnique({
+          where: { id: data.serviceCenterId },
+          select: { id: true },
+        })
+        if (!initialCenter) return { created: false as const, reason: 'configuration' as const }
+        await lockSchedulingCenter(transaction, initialCenter.id)
+        const center = await transaction.serviceCenter.findUnique({
+          where: { id: initialCenter.id },
+          select: { id: true, timeZone: true },
+        })
+        if (!center) return { created: false as const, reason: 'configuration' as const }
+        const [vehicle, serviceType] = await Promise.all([
+          transaction.vehicle.findFirst({ where: { id: data.vehicleId, ownerId: data.customerId }, select: { id: true } }),
+          transaction.serviceType.findUnique({ where: { id: data.serviceTypeId }, select: { estimatedDurationMinutes: true } }),
+        ])
+        if (!vehicle || !serviceType) return { created: false as const, reason: 'invalid' as const }
+        if (!center.timeZone) return { created: false as const, reason: 'configuration' as const }
+        const date = dateInTimeZone(data.scheduledDate, center.timeZone)
+        const availability = await availableSlotsWithTransaction(
+          transaction,
+          center.id,
+          date,
+          serviceType.estimatedDurationMinutes,
+        )
+        if (!availability.configured) return { created: false as const, reason: 'configuration' as const }
+        if (!availability.slots.some((slot) => slot.getTime() === data.scheduledDate.getTime()) || data.scheduledDate <= new Date()) {
+          return { created: false as const, reason: 'unavailable' as const }
+        }
+        await transaction.booking.create({
+          data: {
+            customerId: data.customerId,
+            vehicleId: data.vehicleId,
+            serviceTypeId: data.serviceTypeId,
+            serviceCenterId: center.id,
+            scheduledDate: data.scheduledDate,
+            notes: data.notes,
+            status: BookingStatus.PENDING,
+          },
+        })
+        return { created: true as const }
+      })
     },
     async confirmPendingForProvider(bookingId: number) {
       const result = await prisma.booking.updateMany({

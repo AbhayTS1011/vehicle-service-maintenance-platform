@@ -82,12 +82,25 @@ model ServiceCenter {
   phone            String      @db.VarChar(20)
   email            String      @db.VarChar(255)
   operatingHours   String?     @default("Mon-Sat 8:00 AM - 6:00 PM") @map("operating_hours") @db.VarChar(100)
+  timeZone         String?     @map("time_zone") @db.VarChar(64)
   createdAt        DateTime    @default(now()) @map("created_at") @db.Timestamptz
   updatedAt        DateTime    @default(now()) @map("updated_at") @db.Timestamptz
   mechanics        Mechanic[]
   bookings         Booking[]
+  weeklyHours      ServiceCenterHour[]
 
   @@map("service_center")
+}
+
+model ServiceCenterHour {
+  serviceCenterId Int           @map("service_center_id")
+  dayOfWeek       Int           @map("day_of_week") @db.SmallInt
+  opensAt         DateTime      @map("opens_at") @db.Time(0)
+  closesAt        DateTime      @map("closes_at") @db.Time(0)
+  serviceCenter   ServiceCenter @relation(fields: [serviceCenterId], references: [id], onDelete: Cascade)
+
+  @@id([serviceCenterId, dayOfWeek, opensAt])
+  @@map("service_center_hours")
 }
 
 model Mechanic {

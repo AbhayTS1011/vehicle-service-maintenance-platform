@@ -79,7 +79,7 @@ export type ProviderMechanicAssignmentResult =
   | { success: true; mechanic: { id: number; name: string } }
   | {
       success: false
-      reason: 'unauthenticated' | 'forbidden' | 'invalid_input' | 'not_found' | 'invalid_state' | 'already_assigned' | 'mechanic_unavailable' | 'service_center_mismatch' | 'error'
+      reason: 'unauthenticated' | 'forbidden' | 'invalid_input' | 'not_found' | 'invalid_state' | 'already_assigned' | 'mechanic_unavailable' | 'mechanic_busy' | 'service_center_mismatch' | 'error'
       error: string
     }
 
@@ -179,6 +179,9 @@ export async function assignMechanicToProviderBooking(
 
     const updated = await repository.assignMechanic(bookingId, mechanicId, booking.serviceCenterId)
     if (updated === 1) return { success: true, mechanic: { id: mechanic.id, name: mechanic.name } }
+    if (updated === 2) {
+      return { success: false, reason: 'mechanic_busy', error: 'That mechanic already has an overlapping appointment.' }
+    }
     if (updated !== 0) {
       return { success: false, reason: 'error', error: 'The mechanic could not be assigned. Please try again.' }
     }
@@ -215,10 +218,45 @@ export type BookingRepository = {
     serviceCenterId: number
     scheduledDate: Date
     notes?: string
-  }) => Promise<unknown>
+  }) => Promise<{ created: true } | { created: false; reason: 'unavailable' | 'configuration' | 'invalid' }>
 }
 
 export type BookingResult = { success: true } | { success: false; error: string }
+
+export type AvailableSlotsResult =
+  | { success: true; configured: boolean; slots: Date[] }
+  | { success: false; error: string }
+
+export async function listAvailableAppointmentSlots(
+  actor: BookingActor,
+  dateInput: unknown,
+  serviceTypeInput: unknown,
+  repository: { availableAppointmentSlots: (date: string, serviceTypeId: number) => Promise<{ configured: boolean; slots: Date[] }> },
+): Promise<AvailableSlotsResult> {
+  if (!actor || !Number.isSafeInteger(actor.id) || actor.id <= 0) {
+    return { success: false, error: 'Please sign in to view available appointments.' }
+  }
+  if (actor.role !== UserRole.CUSTOMER && actor.role !== UserRole.FLEET_MANAGER) {
+    return { success: false, error: 'You do not have permission to view available appointments.' }
+  }
+  const serviceTypeId = typeof serviceTypeInput === 'number'
+    ? serviceTypeInput
+    : typeof serviceTypeInput === 'string' && /^\d+$/.test(serviceTypeInput)
+      ? Number(serviceTypeInput)
+      : Number.NaN
+  const parsedDate = typeof dateInput === 'string' ? new Date(`${dateInput}T00:00:00.000Z`) : null
+  if (typeof dateInput !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(dateInput) ||
+      !Number.isSafeInteger(serviceTypeId) || serviceTypeId <= 0 ||
+      !parsedDate || Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0, 10) !== dateInput) {
+    return { success: false, error: 'Choose a valid appointment date and service.' }
+  }
+  try {
+    const result = await repository.availableAppointmentSlots(dateInput, serviceTypeId)
+    return { success: true, ...result }
+  } catch {
+    return { success: false, error: 'Available appointments could not be loaded. Please try again.' }
+  }
+}
 
 export type CustomerBookingSummary = {
   id: number
@@ -531,9 +569,12 @@ export async function createCustomerBooking(
       typeof scheduledDateText !== 'string' || !scheduledDateText.trim()) {
     return { success: false, error: 'Choose a vehicle, service, and preferred date.' }
   }
-  const scheduledDate = new Date(scheduledDateText)
-  if (Number.isNaN(scheduledDate.getTime())) {
+  if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?(?:Z|[+-]\d{2}:\d{2})$/.test(scheduledDateText)) {
     return { success: false, error: 'Enter a valid preferred service date.' }
+  }
+  const scheduledDate = new Date(scheduledDateText)
+  if (Number.isNaN(scheduledDate.getTime()) || scheduledDate <= new Date()) {
+    return { success: false, error: 'Choose a future appointment time.' }
   }
   if (notesText !== undefined && notesText !== null && typeof notesText !== 'string') {
     return { success: false, error: 'Notes must be plain text.' }
@@ -551,7 +592,7 @@ export async function createCustomerBooking(
     return { success: false, error: 'Bookings are currently unavailable. Please try again later.' }
   }
 
-  await repository.create({
+  const created = await repository.create({
     customerId: actor.id,
     vehicleId,
     serviceTypeId,
@@ -559,5 +600,12 @@ export async function createCustomerBooking(
     scheduledDate,
     ...(notes ? { notes } : {}),
   })
+  if (!created.created) {
+    if (created.reason === 'configuration') {
+      return { success: false, error: 'Appointment scheduling is not configured. Please contact the service center.' }
+    }
+    if (created.reason === 'invalid') return { success: false, error: 'Choose a vehicle and service available to your account.' }
+    return { success: false, error: 'That appointment time is no longer available. Choose another time.' }
+  }
   return { success: true }
 }

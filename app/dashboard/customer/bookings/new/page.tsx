@@ -13,12 +13,14 @@ export default async function NewBookingPage() {
 
   let vehicles: Awaited<ReturnType<typeof db.bookingCatalog.vehiclesForCustomer>> = []
   let serviceTypes: Awaited<ReturnType<typeof db.bookingCatalog.serviceTypes>> = []
+  let timeZone: string | null = null
   let unavailable = false
   try {
     ;[vehicles, serviceTypes] = await Promise.all([
       db.bookingCatalog.vehiclesForCustomer(payload.userId),
       db.bookingCatalog.serviceTypes(),
     ])
+    timeZone = (await db.bookingCatalog.schedulingSettings())?.timeZone ?? null
   } catch {
     unavailable = true
   }
@@ -34,7 +36,7 @@ export default async function NewBookingPage() {
         {unavailable ? (
           <p role="alert">Booking options are unavailable right now. Please try again later.</p>
         ) : (
-          <BookingForm vehicles={vehicles} serviceTypes={serviceTypes} />
+          <BookingForm vehicles={vehicles} serviceTypes={serviceTypes} timeZone={timeZone} />
         )}
       </div>
     </main>

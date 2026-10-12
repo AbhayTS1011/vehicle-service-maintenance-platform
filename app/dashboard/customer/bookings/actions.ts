@@ -8,6 +8,7 @@ import { verifyToken } from '@/lib/auth/jwt'
 import {
   cancelCustomerBooking,
   createCustomerBooking,
+  listAvailableAppointmentSlots,
   type BookingCancellationResult,
   type BookingResult,
 } from '@/lib/booking/booking-service'
@@ -41,10 +42,21 @@ export async function createBooking(_previousState: BookingResult | null, formDa
       ownsVehicle: (customerId, vehicleId) => verifyVehicleOwnership(customerId, vehicleId, role ?? UserRole.CUSTOMER),
       serviceTypeExists: (id) => db.bookingCatalog.serviceTypeExists(id),
       serviceCenterId: () => db.bookingCatalog.serviceCenterId(),
-      create: (data) => db.booking.create({ data }),
+      create: (data) => db.booking.createScheduledBooking(data),
     })
     return result
   } catch {
     return { success: false, error: 'We could not create your booking. Please try again.' }
   }
+}
+
+export async function getAvailableSlots(date: string, serviceTypeId: string) {
+  const token = (await cookies()).get('apex_session')?.value
+  const payload = token ? await verifyToken(token) : null
+  const role = payload?.role as UserRole | undefined
+  const actor = payload?.userId && role ? { id: payload.userId, role } : null
+  return listAvailableAppointmentSlots(actor, date, serviceTypeId, {
+    availableAppointmentSlots: (requestedDate, requestedServiceTypeId) =>
+      db.bookingCatalog.availableAppointmentSlots(requestedDate, requestedServiceTypeId),
+  })
 }

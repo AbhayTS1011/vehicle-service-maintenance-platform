@@ -32,6 +32,11 @@ export default function ServiceCenterPage() {
             Manage the service center details below.
           </p>
         </div>
+        <p style={{ marginBottom: '1.5rem' }}>
+          <Link href="/dashboard/admin/service-center/schedule" style={{ color: '#93c5fd' }}>
+            Configure appointment timezone and weekly hours
+          </Link>
+        </p>
 
         <div style={{
           backgroundColor: '#0f172a',

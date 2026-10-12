@@ -23,3 +23,9 @@
 ## 6. Email Notifications
 - **Decision**: Use Nodemailer with SMTP for asynchronous email notifications triggered upon booking status updates and invoice generation.
 - **Rationale**: Keeps communication robust without external paid services.
+
+## 7. Appointment Scheduling
+- **Decision**: Use normalized weekly service-center opening windows and an explicit IANA timezone. Offer starts every 15 minutes, use each service type's estimated duration, and treat active mechanics as parallel capacity. `PENDING`, `CONFIRMED`, and `IN_PROGRESS` bookings reserve capacity.
+- **Concurrency**: Availability-changing writes lock the service-center row, recheck overlap/capacity, and then persist in one PostgreSQL transaction. Mechanic assignment also rejects overlapping work for the same mechanic.
+- **Rationale**: The legacy `operating_hours` text cannot safely represent weekly hours or a timezone. Existing centers are backfilled only when that text exactly matches its known default; custom values require explicit administrator configuration. The timezone remains unset until configured rather than assuming one.
+- **Limit**: Mechanic shifts and multiple breaks per day are not represented in the current admin form. The SQL table can store multiple windows per day, but the first interface configures one continuous window per weekday.

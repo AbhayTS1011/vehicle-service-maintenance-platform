@@ -70,8 +70,21 @@ CREATE TABLE service_center (
     phone VARCHAR(20) NOT NULL,
     email VARCHAR(255) NOT NULL,
     operating_hours VARCHAR(100) DEFAULT 'Mon-Sat 8:00 AM - 6:00 PM',
+    time_zone VARCHAR(64),
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- =====================================================================
+-- 3A. NORMALIZED WEEKLY SERVICE CENTER HOURS
+-- =====================================================================
+CREATE TABLE service_center_hours (
+    service_center_id INTEGER NOT NULL REFERENCES service_center(id) ON DELETE CASCADE,
+    day_of_week SMALLINT NOT NULL CHECK (day_of_week BETWEEN 0 AND 6),
+    opens_at TIME NOT NULL,
+    closes_at TIME NOT NULL,
+    PRIMARY KEY (service_center_id, day_of_week, opens_at),
+    CHECK (closes_at > opens_at)
 );
 
 -- =====================================================================

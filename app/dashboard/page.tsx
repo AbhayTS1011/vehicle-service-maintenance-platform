@@ -3,9 +3,12 @@
 // =====================================================================
 
 import Link from 'next/link'
+import { UserRole } from '@prisma/client'
 import { logoutUser } from '@/lib/auth/actions'
+import { getSessionActor } from '@/lib/admin/session'
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  const actor = await getSessionActor()
   // Middleware handles route protection - no need for client-side auth check
   // The middleware redirects unauthenticated users to /login
 
@@ -29,7 +32,7 @@ export default function DashboardPage() {
           <LogoutButton />
         </div>
 
-        <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'flex-start' }}>
           <div className="card">
             <h3>Vehicle Management</h3>
             <p>Use the navigation below to manage your vehicles.</p>
@@ -37,6 +40,15 @@ export default function DashboardPage() {
               My Vehicles
             </Link>
           </div>
+          {actor?.role === UserRole.ADMIN ? (
+            <div className="card">
+              <h3>Administrator overview</h3>
+              <p>Review service-center operations, booking status, inventory alerts, invoices, and customer ratings.</p>
+              <Link href="/dashboard/admin" style={{ display: 'inline-block', padding: '0.75rem 1.5rem', backgroundColor: '#2563eb', color: 'white', borderRadius: '0.5rem', fontWeight: '600', textDecoration: 'none' }}>
+                Open admin dashboard
+              </Link>
+            </div>
+          ) : null}
         </div>
       </div>
     </main>

@@ -9,6 +9,7 @@ export function CancelBookingForm({ bookingId }: { bookingId: number }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [emailWarning, setEmailWarning] = useState<string | undefined>()
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -20,6 +21,7 @@ export function CancelBookingForm({ bookingId }: { bookingId: number }) {
     try {
       const result = await cancelBooking(formData)
       if (result.success) {
+        setEmailWarning(result.emailWarning)
         setSuccess(true)
         router.refresh()
       } else {
@@ -35,7 +37,7 @@ export function CancelBookingForm({ bookingId }: { bookingId: number }) {
   return (
     <div style={{ marginTop: '1.5rem' }}>
       {success ? (
-        <p role="status">Booking cancelled.</p>
+        <div role="status">Booking cancelled.{emailWarning && <p>{emailWarning}</p>}</div>
       ) : (
         <form onSubmit={handleSubmit}>
           <input type="hidden" name="bookingId" value={bookingId} />

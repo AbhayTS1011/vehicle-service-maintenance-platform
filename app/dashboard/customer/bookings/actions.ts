@@ -15,20 +15,23 @@ import {
   type CustomerBookingUpdateResult,
   type BookingResult,
 } from '@/lib/booking/booking-service'
+import { submitCustomerReview } from '@/lib/reviews/review-service'
+import { notifySuccessfulBookingMutation } from '@/lib/email-workflows'
 
-export async function cancelBooking(formData: FormData): Promise<BookingCancellationResult> {
+export async function cancelBooking(formData: FormData): Promise<BookingCancellationResult & { emailWarning?: string }> {
   const token = (await cookies()).get('apex_session')?.value
   const payload = token ? await verifyToken(token) : null
   const role = payload?.role as UserRole | undefined
   const actor = payload?.userId && role ? { id: payload.userId, role } : null
 
-  return cancelCustomerBooking(actor, formData.get('bookingId'), {
+  const result = await cancelCustomerBooking(actor, formData.get('bookingId'), {
     cancelPendingForCustomer: (bookingId, customerId) => db.booking.cancelPendingForCustomer(bookingId, customerId),
     findStatusForCustomer: (bookingId, customerId) => db.booking.findStatusForCustomer(bookingId, customerId),
   })
+  return notifySuccessfulBookingMutation(result, 'booking_cancelled', formData.get('bookingId'), db.workflowEmail)
 }
 
-export async function createBooking(_previousState: BookingResult | null, formData: FormData): Promise<BookingResult> {
+export async function createBooking(_previousState: BookingResult | null, formData: FormData): Promise<BookingResult & { emailWarning?: string }> {
   const token = (await cookies()).get('apex_session')?.value
   const payload = token ? await verifyToken(token) : null
   const role = payload?.role as UserRole | undefined
@@ -47,7 +50,9 @@ export async function createBooking(_previousState: BookingResult | null, formDa
       serviceCenterId: () => db.bookingCatalog.serviceCenterId(),
       create: (data) => db.booking.createScheduledBooking(data),
     })
-    return result
+    return result.success && result.bookingId
+      ? notifySuccessfulBookingMutation(result, 'booking_requested', result.bookingId, db.workflowEmail)
+      : result
   } catch {
     return { success: false, error: 'We could not create your booking. Please try again.' }
   }
@@ -85,4 +90,24 @@ export async function updateBooking(_previous: CustomerBookingUpdateResult | nul
   } catch {
     return { success: false, reason: 'error', error: 'Your booking could not be updated. Please try again.' }
   }
+}
+
+export async function submitBookingReview(formData: FormData) {
+  const token = (await cookies()).get('apex_session')?.value
+  const payload = token ? await verifyToken(token) : null
+  const role = payload?.role as UserRole | undefined
+  const actor = payload?.userId && role ? { id: payload.userId, role } : null
+  const result = await submitCustomerReview(
+    actor,
+    formData.get('bookingId'),
+    formData.get('rating'),
+    formData.get('comment'),
+    db.review,
+  )
+
+  if (result.success) {
+    revalidatePath('/dashboard/customer/bookings')
+    revalidatePath(`/dashboard/customer/bookings/${result.review.bookingId}`)
+  }
+  return result
 }

@@ -27,6 +27,11 @@ export default async function CustomerBookingsPage() {
       <section style={{ width: '100%', maxWidth: '1000px' }}>
         <span className="badge">Service history</span>
         <h1 style={{ fontSize: '2rem', margin: '1rem 0' }}>Your bookings</h1>
+        <p style={{ marginBottom: '1.5rem' }}>
+          <Link href="/dashboard/service-records" style={{ color: '#60a5fa', textDecoration: 'underline' }}>View completed service records</Link>
+          {' · '}
+          <Link href="/dashboard/customer/invoices" style={{ color: '#60a5fa', textDecoration: 'underline' }}>View invoices</Link>
+        </p>
         {!result.success ? (
           <p role="alert">{result.error}</p>
         ) : result.bookings.length === 0 ? (

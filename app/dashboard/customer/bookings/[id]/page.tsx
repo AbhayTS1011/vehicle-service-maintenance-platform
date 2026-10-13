@@ -5,8 +5,10 @@ import { UserRole } from '@prisma/client'
 import { verifyToken } from '@/lib/auth/jwt'
 import { db } from '@/lib/db'
 import { getCustomerBookingDetails } from '@/lib/booking/booking-service'
+import { getCustomerBookingReview } from '@/lib/reviews/review-service'
 import { CancelBookingForm } from '../CancelBookingForm'
 import { RescheduleBookingForm } from './RescheduleBookingForm'
+import { ReviewForm } from './ReviewForm'
 
 const dateTime = new Intl.DateTimeFormat('en-IN', {
   dateStyle: 'medium',
@@ -30,6 +32,13 @@ export default async function CustomerBookingDetailsPage({
     bookingId,
     { findForCustomer: (id, customerId) => db.booking.findForCustomerById(id, customerId) },
   )
+  const reviewResult = result.success
+    ? await getCustomerBookingReview(
+      { id: payload.userId, role: payload.role },
+      result.booking.id,
+      db.review,
+    )
+    : null
 
   if (!result.success && result.reason === 'not_found') notFound()
 
@@ -82,6 +91,22 @@ export default async function CustomerBookingDetailsPage({
                 <CancelBookingForm bookingId={result.booking.id} />
               </>
             )}
+            <section aria-labelledby="review-heading" style={{ marginTop: '2rem', borderTop: '1px solid #334155', paddingTop: '1.5rem' }}>
+              <h2 id="review-heading" style={{ fontSize: '1.35rem', marginBottom: '0.75rem' }}>Your review</h2>
+              {!reviewResult || !reviewResult.success ? (
+                <p role="alert">{reviewResult?.error ?? 'Review details could not be loaded. Please try again.'}</p>
+              ) : reviewResult.review ? (
+                <div>
+                  <p aria-label={`Rating: ${reviewResult.review.rating} out of 5`}>{'★'.repeat(reviewResult.review.rating)}{'☆'.repeat(5 - reviewResult.review.rating)} <span>{reviewResult.review.rating} out of 5</span></p>
+                  {reviewResult.review.comment && <p style={{ whiteSpace: 'pre-wrap' }}>{reviewResult.review.comment}</p>}
+                  <p style={{ color: '#94a3b8' }}>Submitted {dateTime.format(reviewResult.review.createdAt)}</p>
+                </div>
+              ) : reviewResult.eligible ? (
+                <ReviewForm bookingId={result.booking.id} />
+              ) : (
+                <p>A review is available after the service is completed.</p>
+              )}
+            </section>
           </>
         )}
       </section>

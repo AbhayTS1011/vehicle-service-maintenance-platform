@@ -19,7 +19,7 @@ export default function BookingForm({
   serviceTypes: Array<{ id: number; name: string; description: string | null; estimatedDurationMinutes: number }>
   timeZone: string | null
 }) {
-  const [state, formAction] = useActionState<BookingResult | null, FormData>(createBooking, null)
+  const [state, formAction] = useActionState<(BookingResult & { emailWarning?: string }) | null, FormData>(createBooking, null)
   const [date, setDate] = useState('')
   const [serviceTypeId, setServiceTypeId] = useState('')
   const [slots, setSlots] = useState<Date[]>([])
@@ -115,7 +115,7 @@ export default function BookingForm({
       </label>
       {state && (
         <p role="status" aria-live="polite" className={state.success ? 'booking-success' : 'booking-error'}>
-          {state.success ? 'Booking request submitted. Its status is pending.' : state.error}
+          {state.success ? <>Booking request submitted. Its status is pending.{state.emailWarning && <><br />{state.emailWarning}</>}</> : state.error}
         </p>
       )}
       <SubmitButton />

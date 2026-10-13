@@ -257,10 +257,10 @@ export type BookingRepository = {
     serviceCenterId: number
     scheduledDate: Date
     notes?: string
-  }) => Promise<{ created: true } | { created: false; reason: 'unavailable' | 'configuration' | 'invalid' }>
+  }) => Promise<{ created: true; bookingId?: number } | { created: false; reason: 'unavailable' | 'configuration' | 'invalid' }>
 }
 
-export type BookingResult = { success: true } | { success: false; error: string }
+export type BookingResult = { success: true; bookingId?: number } | { success: false; error: string }
 
 export type CustomerBookingUpdateResult =
   | { success: true }
@@ -761,5 +761,5 @@ export async function createCustomerBooking(
     if (created.reason === 'invalid') return { success: false, error: 'Choose a vehicle and service available to your account.' }
     return { success: false, error: 'That appointment time is no longer available. Choose another time.' }
   }
-  return { success: true }
+  return created.bookingId === undefined ? { success: true } : { success: true, bookingId: created.bookingId }
 }

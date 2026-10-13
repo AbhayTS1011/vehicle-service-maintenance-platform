@@ -1,77 +1,37 @@
-# Agent Governance & Architecture - Vehicle Service & Maintenance Platform
+# Repository Governance — Vehicle Service & Maintenance Platform
 
-## 1. Environment & Capabilities Audit
-- **OpenCode Built-in Agents**: `explore`, `general`.
-- **OpenCode Tools**: `read`, `write`, `edit`, `glob`, `grep`, `bash`, `task`, `skill`, `todowrite`, `question`, `webfetch`.
-- **Invocation Mechanism**: Sub-agents are invoked via the `task` tool (`subagent_type: "general"` or `"explore"`), with specific prompts defining their role, ownership, and scope.
-- **Skill System**: The `skill` tool loads specialized guidance. Since project-specific custom agent files are not pre-configured in `.opencode/`, the Master Orchestrator delegates specialized tasks directly using structured task prompts adhering to strict domain boundaries and governance rules.
+## 1. Repository Architecture
 
----
+- Next.js 16 App Router pages live directly under `app/`; there is no `(dashboard)` route group or `app/api/` tree in the current implementation.
+- `proxy.ts` provides dashboard URL gating. Server Actions and feature services must perform their own authorization and input checks; a Proxy result alone is not mutation authorization.
+- PostgreSQL definitions and forward-only migrations are maintained under `database/`. Prisma supplies typed access in implemented workflows and client generation; it is not the migration source of truth.
+- Domain logic and focused tests live in `lib/`: `auth/`, `admin/`, `booking/`, `service-records/`, `invoicing/`, `reviews/`, and email modules.
+- Legacy `db.user` and `db.vehicle` adapters remain placeholders. Do not document authenticated user persistence or owner-scoped vehicle CRUD as complete until these adapters are implemented and tested.
 
-## 2. Agent Team & Responsibilities (Consolidated Architecture)
+## 2. Domain Ownership Map
 
-To maintain rigorous code quality and prevent module conflicts, responsibilities are consolidated into 6 core agent divisions under the **Master Orchestrator**:
+| Area | Primary locations | Review focus |
+|---|---|---|
+| Database and SQL | `database/`, `prisma/schema.prisma` | Referential integrity, SQL source of truth, forward-only migrations, safe target verification |
+| Authentication | `lib/auth/`, `proxy.ts`, `lib/admin/session.ts` | Signed-session identity, server-side roles, persistence limitations |
+| Booking and scheduling | `lib/booking/`, `app/dashboard/customer/bookings/`, `app/dashboard/provider/bookings/` | Ownership, conditional state transitions, availability and concurrency |
+| Service records and parts | `lib/service-records/`, provider completion pages, `database/triggers.sql` | Transactional completion, inventory trigger, rollback and retry safety |
+| Invoices | `lib/invoicing/`, invoice routes, `database/functions.sql` | SQL-calculated totals, one invoice per booking, atomic booking transition |
+| Reviews | `lib/reviews/`, customer booking detail | Owner scope, eligibility, duplicate and concurrent submission |
+| Email | `lib/email.ts`, `lib/email-workflows.ts` | Safe content, post-commit best-effort delivery, no outbox/retry |
+| Admin dashboard | `lib/admin/dashboard.ts`, `app/dashboard/admin/page.tsx` | Admin authorization, aggregate correctness, safe empty/error behavior |
+| Documentation | `README.md`, `PROJECT_STATUS.md`, `PLAN.md`, `docs/` | Evidence labels, historical/current distinction, approved scope |
 
-### 1. Master Orchestrator
-- **Role**: Overall project coordination, phase gating, task sequencing, integration verification.
-- **Scope**: Entire repository.
+## 3. Verification and Safety Rules
 
-### 2. Database & SQL Specialist (Database Architect + PostgreSQL Expert + Concurrency Specialist)
-- **Role**: Relational schema design, normalization (3NF), SQL-first schema definition (`database/schema.sql`, `functions.sql`, `triggers.sql`, `views.sql`, `indexes.sql`, `seed.sql`), transactions, row-level locking, race condition prevention, Prisma type generation.
-- **Scope**: `database/`, `prisma/`.
+1. Inspect the current Git state and preserve all uncommitted work before editing.
+2. Run focused commands from `package.json`; unit/mock results do not establish PostgreSQL persistence.
+3. Integration suites must use the explicit guarded dedicated test-database URL. Never bypass target/schema preflights or target production/external databases.
+4. `database/schema.sql` contains destructive `DROP ... CASCADE` operations. Do not run it against an existing or populated database; use only a newly created disposable database when bootstrap is explicitly required.
+5. Record which environment actually ran each check. Do not claim production database verification or live SMTP delivery without direct evidence.
+6. Keep `PLAN.md` as the approved scope authority. Do not begin later phases without an explicit request.
+7. Do not commit, push, or modify unrelated files unless the user explicitly asks.
 
-### 3. Backend & Auth Specialist (Backend + Auth + Domain Agents)
-- **Role**: Next.js API routes, Server Actions, business logic, JWT authentication, RBAC authorization middleware, booking lifecycle validation, fleet management, inventory transactions, invoice calculation logic, notification service (Nodemailer).
-- **Scope**: `app/api/`, `lib/auth.ts`, `lib/db.ts`, `lib/email.ts`, `lib/services/`.
+## 4. Current Verification Scope
 
-### 4. Frontend & UI Specialist (Frontend + Customer, Provider, Admin UI)
-- **Role**: Next.js App Router pages, layouts, Tailwind CSS styling, responsive components, dashboards for Customer, Service Provider, and Admin roles, form handling (React Hook Form + Zod).
-- **Scope**: `app/(auth)/`, `app/(dashboard)/`, `components/`.
-
-### 5. Quality, Security & Analytics Specialist (Testing, Security, Code Review, Analytics)
-- **Role**: Unit tests (Jest), component tests (React Testing Library), E2E/concurrency tests (Playwright), security audits (OWASP, SQLi/XSS/CSRF prevention), advanced SQL analytics (CTEs, window functions, revenue/workload views), code reviews.
-- **Scope**: `tests/`, analytics queries in `database/analytics.sql`, security verification.
-
-### 6. DevOps, Documentation & Viva Specialist (DevOps, Documentation, Viva)
-- **Role**: Git workflow, deployment configuration, comprehensive documentation (README, architecture, setup), academic viva preparation explaining DBMS concepts (normalization, locking, triggers, views).
-- **Scope**: `README.md`, `docs/`, deployment configs.
-
----
-
-## 3. File Ownership Map
-
-| Path / Module | Primary Responsible Agent | Supporting Agent |
-| :--- | :--- | :--- |
-| `database/**/*.sql` | Database & SQL Specialist | Master Orchestrator |
-| `prisma/schema.prisma` | Database & SQL Specialist | Backend Specialist |
-| `lib/auth.ts`, middleware | Backend & Auth Specialist | Security Specialist |
-| `lib/db.ts`, `lib/email.ts`, `lib/services/*` | Backend & Auth Specialist | Database Specialist |
-| `app/api/**/*` | Backend & Auth Specialist | Database Specialist |
-| `app/(auth)/`, `app/(dashboard)/**/*` | Frontend & UI Specialist | Backend Specialist |
-| `components/**/*` | Frontend & UI Specialist | - |
-| `tests/**/*` | Quality & Testing Specialist | Backend & Database Specialists |
-| `docs/**/*` | Documentation & Viva Specialist | Master Orchestrator |
-
----
-
-## 4. Agent Dependency Graph
-
-```
-Database & SQL Specialist (Schema, Functions, Triggers, Views, Indexes, Seed)
-  ↓
-Backend & Auth Specialist (Auth, RBAC, Services, API Routes, Server Actions)
-  ↓
-Frontend & UI Specialist (Dashboards, Client/Server Components, Forms)
-  ↓
-Quality, Security & Analytics Specialist (Unit/Integration/E2E/Concurrency Tests, Security Audit)
-  ↓
-DevOps, Documentation & Viva Specialist (Final Polish, Deployment & Viva Prep)
-```
-
----
-
-## 5. Definition of Done & Review Process
-1. **Implementation**: Code adheres strictly to TypeScript strict mode (`noImplicitAny`, etc.) and SQL-first principles.
-2. **Database Integrity**: All transactions use proper isolation and row-level locking where concurrency is involved (e.g. mechanic assignment, inventory deduction).
-3. **Verification**: Automated tests pass successfully.
-4. **Code Review**: Checked for security vulnerabilities, type safety, and architectural consistency before marking complete.
+The current recorded status for Phases 1–10 is in `PROJECT_STATUS.md`. The focused Phase 5–10 PostgreSQL results use only the dedicated test database. Production/external databases were not tested. Phase 9 live SMTP delivery was not tested; notification delivery is best-effort without a durable outbox or automatic retry. Phase 11 and Phase 12 remain NOT STARTED.

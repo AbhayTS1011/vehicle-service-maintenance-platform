@@ -1,0 +1,20 @@
+name: vehicle-service-phase5-test
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: vehicle_service_test
+      POSTGRES_USER: vehicle_service_test
+      POSTGRES_PASSWORD: ${POSTGRES_TEST_PASSWORD:?Set POSTGRES_TEST_PASSWORD in the Compose env file}
+    ports:
+      - "127.0.0.1:55432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+    restart: "no"
+
+# Intentionally no volumes: this dedicated test database remains inside this
+# container's writable layer and cannot share a host or production data volume.

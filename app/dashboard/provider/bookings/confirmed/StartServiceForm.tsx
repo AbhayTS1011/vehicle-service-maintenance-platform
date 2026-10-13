@@ -9,6 +9,7 @@ export function StartServiceForm({ bookingId }: { bookingId: number }) {
   const [pending, setPending] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
+  const [emailWarning, setEmailWarning] = useState<string | undefined>()
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -19,6 +20,7 @@ export function StartServiceForm({ bookingId }: { bookingId: number }) {
     try {
       const result = await startService(new FormData(event.currentTarget))
       if (result.success) {
+        setEmailWarning(result.emailWarning)
         setSuccess(true)
         router.refresh()
       } else {
@@ -34,7 +36,7 @@ export function StartServiceForm({ bookingId }: { bookingId: number }) {
   return (
     <div>
       {success ? (
-        <p role="status">Service started.</p>
+        <div role="status">Service started.{emailWarning && <p>{emailWarning}</p>}</div>
       ) : (
         <form onSubmit={handleSubmit}>
           <input type="hidden" name="bookingId" value={bookingId} />

@@ -8,7 +8,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "db:generate": "prisma generate"
+    "db:generate": "prisma generate",
+    "test:integration:phase5": "tsx --test lib/booking/phase5-postgres.integration.test.cjs",
+    "test:integration:phase6": "tsx --test lib/service-records/phase6-postgres.integration.test.cjs",
+    "test:unit:phase7": "tsx --test lib/invoicing/invoice-service.test.cjs",
+    "test:integration:phase7": "tsx --test lib/invoicing/phase7-postgres.integration.test.cjs",
+    "test:unit:phase8": "tsx --test lib/reviews/review-service.test.cjs",
+    "test:integration:phase8": "tsx --test lib/reviews/phase8-postgres.integration.test.cjs",
+    "test:unit:phase9": "tsx --test lib/email.test.cjs lib/email-workflows.test.cjs",
+    "test:integration:phase9": "tsx --test lib/email-workflows.postgres.integration.test.cjs",
+    "test:unit:phase10": "tsx --test lib/admin/dashboard.test.cjs",
+    "test:integration:phase10": "tsx --test lib/admin/dashboard-postgres.integration.test.cjs"
   },
   "dependencies": {
     "@prisma/client": "^5.19.0",
@@ -33,6 +43,7 @@
     "postcss": "^8.4.41",
     "prisma": "^5.19.0",
     "tailwindcss": "4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "5.9.3"
   },
   "overrides": {

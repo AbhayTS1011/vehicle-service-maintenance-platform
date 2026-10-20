@@ -8,14 +8,12 @@ import { useState as useReactState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { registerUser } from '../../lib/auth/actions'
-import { UserRole } from '@prisma/client'
 
 export default function RegisterPage() {
   const router = useRouter()
   const [name, setName] = useReactState('')
   const [email, setEmail] = useReactState('')
   const [password, setPassword] = useReactState('')
-  const [role, setRole] = useReactState<UserRole>('CUSTOMER')
   const [phone, setPhone] = useReactState('')
   const [error, setError] = useReactState('')
   const [loading, setLoading] = useReactState(false)
@@ -25,7 +23,7 @@ export default function RegisterPage() {
     setError('')
     setLoading(true)
 
-    const res = await registerUser({ name, email, password, role, phone })
+    const res = await registerUser({ name, email, password, phone })
     setLoading(false)
 
     if (res.success) {
@@ -83,20 +81,6 @@ export default function RegisterPage() {
               style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: '#0f172a', border: '1px solid #334155', color: 'white' }}
               placeholder="••••••••"
             />
-          </div>
-
-          <div>
-            <label style={{ display: 'block', fontSize: '0.875rem', color: '#cbd5e1', marginBottom: '0.5rem' }}>Role</label>
-            <select
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole)}
-              style={{ width: '100%', padding: '0.75rem', borderRadius: '0.5rem', backgroundColor: '#0f172a', border: '1px solid #334155', color: 'white' }}
-            >
-              <option value="CUSTOMER">Customer</option>
-              <option value="FLEET_MANAGER">Fleet Manager</option>
-              <option value="SERVICE_PROVIDER">Service Provider</option>
-              <option value="ADMIN">Admin</option>
-            </select>
           </div>
 
           <div>

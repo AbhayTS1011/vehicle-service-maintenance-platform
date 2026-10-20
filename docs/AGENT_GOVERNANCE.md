@@ -34,4 +34,4 @@
 
 ## 4. Current Verification Scope
 
-The current recorded status for Phases 1–10 is in `PROJECT_STATUS.md`. The focused Phase 5–10 PostgreSQL results use only the dedicated test database. Production/external databases were not tested. Phase 9 live SMTP delivery was not tested; notification delivery is best-effort without a durable outbox or automatic retry. Phase 11 and Phase 12 remain NOT STARTED.
+The current recorded status for Phases 1–11 is in `PROJECT_STATUS.md`. Phase 11 is complete within its defined tested QA scope: 19 focused, 206 combined regression, 23 dedicated-test-database PostgreSQL, and 7 limited browser tests passed; TypeScript, lint, production build, and the available audits were checked. Production/external databases were not tested. Phase 9 live SMTP delivery was not tested; notification delivery is best-effort without a durable outbox or automatic retry. Five high-severity development dependency findings remain documented; Phase 12 remains NOT STARTED.

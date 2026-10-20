@@ -81,6 +81,8 @@ These commands apply only when bootstrapping a new, empty disposable migration-t
 
 Run the dedicated suite only after setting `PHASE5_TEST_DATABASE_URL` as above:
 
+For the Phase 11 database regression pass, the `test:integration:phase11` npm script runs the six Phase 5–10 suites serially and stops at the first failure. It does not create or bootstrap a database; each suite retains its existing loopback target and schema/fixture preflight. Current PowerShell setup instructions and availability results are in [docs/phase-11-qa.md](phase-11-qa.md).
+
 ```powershell
 npm run test:integration:phase5
 ```
@@ -152,4 +154,4 @@ Later phase results are also recorded here so this setup guide does not present 
 - Phase 9: **10 unit, 161 regression, and 3 guarded PostgreSQL context integration tests passed**; TypeScript, lint, and build passed. Production/external DBs and live SMTP delivery were not tested. Delivery is best-effort after commit without an outbox or automatic retry.
 - Phase 10: **3 unit, 184 regression, and 1 guarded PostgreSQL integration test passed**; TypeScript, lint, and `npm run build` passed with Next.js 16.4.0 in the user's regular Windows PowerShell environment. `git diff --check` passed with LF-to-CRLF warnings only. Integration used the dedicated test DB, not production/external DBs.
 
-Phases 5–10 have recorded dedicated-test-database evidence as described above; this does not verify production/external database schema, migrations, or runtime connectivity. Phase 11 and Phase 12 remain NOT STARTED.
+Phases 5–10 have recorded dedicated-test-database evidence as described above; this does not verify production/external database schema, migrations, or runtime connectivity. The Phase 11 regression run subsequently passed all six Phase 5–10 PostgreSQL suites (23/23) in the user's Windows PowerShell environment against the guarded dedicated test database. A later workspace attempt was blocked at the explicit target guard because the URL was unset and Docker Desktop was unavailable; it did not connect or write. Phase 11 was then completed within its defined tested QA scope, including 7 limited local Playwright tests, the recorded regression/static/build checks, and refreshed audits. Phase 12 remains NOT STARTED.

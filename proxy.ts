@@ -4,6 +4,7 @@
 
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { UserRole } from '@prisma/client'
 import { verifyToken } from './lib/auth/jwt'
 
 export async function proxy(request: NextRequest) {
@@ -17,7 +18,7 @@ export async function proxy(request: NextRequest) {
     }
 
     const payload = await verifyToken(sessionCookie)
-    if (!payload || !payload.role) {
+    if (!payload || !Object.values(UserRole).includes(payload.role as UserRole)) {
       return NextResponse.redirect(new URL('/login', request.url))
     }
 

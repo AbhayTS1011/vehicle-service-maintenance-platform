@@ -6,10 +6,15 @@
 
 import { db } from '../db'
 import { hashPassword, verifyPassword } from './password'
+import { parsePublicRegistrationInput } from './registration-input'
 
 export async function registerUser(formData: any) {
   try {
-    const { name, email, password, role = 'CUSTOMER', phone } = formData
+    const registration = parsePublicRegistrationInput(formData)
+    if (!registration) {
+      return { success: false, error: 'Name, email and password are required' }
+    }
+    const { name, email, password, role, phone } = registration
     if (!name || !email || !password) {
       return { success: false, error: 'Name, email and password are required' }
     }
@@ -47,8 +52,8 @@ export async function registerUser(formData: any) {
     })
 
     return { success: true, user: { id: newUser.id, name: newUser.name, email: newUser.email, role: newUser.role } }
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Registration failed' }
+  } catch {
+    return { success: false, error: 'Registration failed. Please try again.' }
   }
 }
 
@@ -99,8 +104,8 @@ export async function loginUser(formData: any) {
 
     // Return user info using! non-null assertions
     return { success: true, user: { id: (user as any).id, name: (user as any).name, email: (user as any).email, role: (user as any).role } }
-  } catch (error: any) {
-    return { success: false, error: error.message || 'Login failed' }
+  } catch {
+    return { success: false, error: 'Login failed. Please try again.' }
   }
 }
 

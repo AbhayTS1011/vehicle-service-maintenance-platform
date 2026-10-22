@@ -5,10 +5,10 @@
 ### Project
 **Vehicle Service & Maintenance Platform**
 
-An in-progress, database-driven vehicle service and maintenance management platform built with Next.js, TypeScript, PostgreSQL, and Prisma. Phases 1–11 have the implementation and verification boundaries recorded below; Phase 11 QA is complete within its defined tested scope, while this documentation does not claim production readiness or completion of all project-wide success criteria. This is a university DBMS project at PES University (Team 22, Section AIML A).
+An in-progress, database-driven vehicle service and maintenance management platform built with Next.js, TypeScript, PostgreSQL, and Prisma. Phases 1–11 have the implementation and verification boundaries recorded below; Phase 12 polish and deployment readiness is in progress. This documentation does not claim production readiness or completion of all project-wide success criteria. This is a university DBMS project at PES University (Team 22, Section AIML A).
 
 ### Purpose
-The platform is intended to support a single-center vehicle-service lifecycle. Booking, service-record/parts consumption, invoicing, reviews, email workflow context, and an admin operational dashboard are implemented within documented test scopes. User persistence and vehicle CRUD remain incomplete; production readiness is not claimed. PostgreSQL definitions are SQL-first, with Prisma used for typed access in implemented workflows and client generation.
+The platform is intended to support a single-center vehicle-service lifecycle. Booking, service-record/parts consumption, invoicing, reviews, email workflow context, an admin operational dashboard, PostgreSQL-backed registration/login, and owner-scoped vehicle CRUD are implemented within documented test scopes. Phase 12 deployment readiness remains in progress. Production readiness is not claimed. PostgreSQL definitions are SQL-first, with Prisma used for typed access in implemented workflows and client generation.
 
 ### Team
 - **Team Number:** 22
@@ -25,12 +25,14 @@ The platform is intended to support a single-center vehicle-service lifecycle. B
 
 ```text
 Branch: main
-Current HEAD: `7cea994d4eefb61152efc2970cb9a207b275663e` (`feat: complete vehicle service workflow through admin dashboard`). `origin/main` was verified at the same commit before Phase 11 work. Phase 11 QA changes are currently uncommitted; no commit or push was made for this phase.
-Phase 5 booking scope: PostgreSQL integration verified on the dedicated test database (5 passed, 0 failed); mocked/unit and safety-guard tests passed 146/146. Lint, TypeScript, and Next.js 16.4.0 production build passed. `npm audit --omit=dev` reported 0 vulnerabilities; full audit still reports 5 high-severity development dependency findings.
+Current HEAD: `22bc09b308c930a020f5fea069eb43b4e9e60c99` (`test: complete phase 11 quality assurance`). Configured `origin` is `https://github.com/AbhayTS1011/vehicle-service-maintenance-platform.git`; `git ls-remote origin refs/heads/main` could not resolve GitHub DNS in the earlier Gate D check, so remote alignment was not reverified in Gate E. Phase 12 work remains uncommitted. Gate E adds JWT/session hardening and tests plus documentation changes on top of the existing Gate A–D work. Pre-existing untracked `AGENTS.md` was preserved and not modified.
+Phase 5 booking scope: PostgreSQL integration verified on the dedicated test database (5 passed, 0 failed); mocked/unit and safety-guard tests passed 146/146. Lint, TypeScript, and Next.js 16.4.0 production build passed. At that historical audit checkpoint, `npm audit --omit=dev` reported 0 vulnerabilities and the full audit reported 5 high-severity development dependency findings. Gate D's later audit refresh was blocked by registry DNS; see Section 3H.
 Phase 6 service-record/parts-consumption scope: dedicated PostgreSQL integration passed 4 tests, 0 failed, in the user's Windows PowerShell environment (about 1.18 seconds), after installing the SQL inventory function and trigger from `database/triggers.sql`. Earlier unit/regression suite passed 155/155; Prisma generation, TypeScript, lint, and production build passed.
-Phase 2 authentication persistence and Phase 3 vehicle persistence remain partial because their current `lib/db.ts` adapters are placeholders; Phase 1 foundation files exist but do not imply all requirements were independently tested. Phase 4A/4B management is implemented with mocked unit coverage; dedicated PostgreSQL results for Phases 5–10 are listed below. Phase 5 booking scope is verified through `COMPLETED`; Phase 6 service records/parts consumption, Phase 7 invoicing, Phase 8 reviews, Phase 9 email workflow context, and Phase 10 admin dashboard are verified only within their recorded test scopes. Phase 9 live SMTP is untested and delivery is best-effort without outbox/retry. No production or external database has been tested. These results do not establish completion of all `PLAN.md` success criteria or production readiness.
+Phase 2 registration/login now use Prisma and signed HTTP-only sessions; the guarded dedicated-PostgreSQL test passed for persisted registration/login/logout behavior, while broader authentication coverage remains limited. Phase 3 vehicle CRUD now uses PostgreSQL with owner-scoped service and repository checks; unit and dedicated-PostgreSQL integration tests cover customer isolation. Phase 1 foundation files exist but do not imply all requirements were independently tested. Phase 4A/4B management is implemented with mocked unit coverage; dedicated PostgreSQL results for Phases 5–10 are listed below. Phase 5 booking scope is verified through `COMPLETED`; Phase 6 service records/parts consumption, Phase 7 invoicing, Phase 8 reviews, Phase 9 email workflow context, and Phase 10 admin dashboard are verified only within their recorded test scopes. Phase 9 live SMTP is untested and delivery is best-effort without outbox/retry. No production or external database has been tested. These results do not establish completion of all `PLAN.md` success criteria or production readiness.
 Phase 7 verification: integration 6/6 on the dedicated PostgreSQL test database, invoice unit tests 8/8, TypeScript, lint, production build, and `git diff --check` passed. Registry access was unavailable at that historical checkpoint; the fresh 2026-10-20 audit is recorded in Section 3G (0 production findings, 5 high development findings). Production/external databases were not tested.
-Latest committed checkpoint remains `7cea994d4eefb61152efc2970cb9a207b275663e`; Phase 11 QA work is uncommitted.
+Release-blocker remediation checkpoint (2026-10-20, before Release Gates A/B): `db.user.findUnique`, `db.user.create`, and `db.auditLog.create` now use Prisma/PostgreSQL; public registration forces CUSTOMER, passwords are hashed, login verifies the stored hash, and register/login/logout set or clear the signed HTTP-only session cookie. Focused auth tests passed 21/21 and the Phase 11 auth suite passed 22/22. At that checkpoint, auth database verification and vehicle CRUD were still outstanding. Release Gates A/B later passed as recorded in Section 3H.
+Latest local committed checkpoint is `22bc09b308c930a020f5fea069eb43b4e9e60c99`; no Phase 12 commit or push was made.
+Phase 12 worktree changes include Release Gates A/B auth and vehicle work, Gate C baseline work, and Gate E JWT/session verification hardening and tests. Gate C added a create-only SQL schema source, guarded transactional baseline, separately labeled destructive developer reset, and static baseline checks. Gate E changed auth code, tests, the Phase 12 unit-test script, and documentation; no dependency or lockfile changed. The pre-existing untracked `AGENTS.md` was not modified or staged. No commit or push was made.
 GitHub:
 https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 ```
@@ -44,8 +46,8 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Phase | Status |
 |---|---|
 | Phase 1 — Foundation & Infrastructure | IMPLEMENTED (schema, framework, and configuration files present; no phase-specific comprehensive verification claimed) |
-| Phase 2 — Authentication & RBAC | PARTIALLY IMPLEMENTED (JWT/password and Proxy/server-side checks exist; user persistence adapter is placeholder, so persisted registration/login is not verified) |
-| Phase 3 — Vehicle Management | PARTIALLY IMPLEMENTED (vehicle routes/UI scaffolding exists; `lib/db.ts` vehicle methods are placeholders and do not provide persisted owner-scoped CRUD) |
+| Phase 2 — Authentication & RBAC | IMPLEMENTED; registration/login/logout persistence verified by a guarded dedicated-PostgreSQL test (broader authentication flows remain limited) |
+| Phase 3 — Vehicle Management | IMPLEMENTED AND VERIFIED WITHIN TESTED SCOPE (customer CRUD, owner scoping, cross-customer isolation, and booking-history delete protection; see Phase 12 Release Gate B) |
 | Phase 4A — Service Center Management | IMPLEMENTED; mocked management tests passed, dedicated PostgreSQL feature integration not recorded |
 | Phase 4B — Mechanic Management | IMPLEMENTED; mocked management tests passed, dedicated PostgreSQL feature integration not recorded |
 | Official PLAN Phase 5 — Booking System | COMPLETE AND VERIFIED (booking scope through COMPLETED; 5 PostgreSQL integration tests passed in the recorded dedicated-DB run) |
@@ -67,7 +69,7 @@ https://github.com/AbhayTS1011/vehicle-service-maintenance-platform
 | Official PLAN Phase 9 — Email Notification System | IMPLEMENTED AND VERIFIED within tested scope (10 unit, 161 regression, and 3 guarded dedicated-PostgreSQL integration tests passed; TypeScript, lint, and build passed; production/external DB and live SMTP untested) |
 | Official PLAN Phase 10 — Admin Dashboard | IMPLEMENTED AND VERIFIED WITHIN THE TESTED SCOPE (3 unit, 184 regression, and 1 PostgreSQL integration test passed; TypeScript, lint, production build, and `git diff --check` passed) |
 | Official PLAN Phase 11 — Testing & Quality Assurance | COMPLETE within the defined tested QA scope (19 focused, 206 combined unit/mock/regression, 23 dedicated PostgreSQL, and 7 local Playwright tests pass; TypeScript/lint/build pass; audit residual documented; see Section 3G) |
-| Official PLAN Phase 12 — Polish & Deployment | NOT STARTED |
+| Official PLAN Phase 12 — Polish & Deployment | IN PROGRESS (Release Gate E consolidated JWT/session verification and added claim validation; password-hashing review, hosting, and external database readiness remain; see Section 3H) |
 
 ---
 
@@ -201,7 +203,7 @@ Files added/changed for this feature: `lib/reviews/review-service.ts`, `lib/revi
 
 Delivery is best-effort after the authoritative database transaction. There is no outbox, background queue, or automatic retry, so an SMTP outage or missing configuration can leave a committed lifecycle change without an email; the responsible user receives a visible warning. Deployment still requires valid SMTP host, port, user, app password, and sender address in server environment variables. In-app `notifications` table is not used because the Phase 9 plan calls for email and existing workflow does not require in-app messages.
 
-Phase 9 files added/changed: `lib/email.ts`, `lib/email.test.cjs`, `lib/email-workflows.ts`, `lib/email-workflows.test.cjs`, `lib/email-workflows.postgres.integration.test.cjs`, booking and invoice Server Actions/UI feedback, `lib/booking/booking-service.ts`, `lib/db.ts`, `.env.example`, `package.json`, `README.md`, and this status document. Phase 9 is implemented and verified within its tested scope: unit/regression tests, the guarded dedicated-PostgreSQL context suite, TypeScript, lint, and production build passed. Live SMTP delivery and production/external databases remain unverified. At the Phase 9 checkpoint, Phase 10 was implemented and verified within its tested scope, while Phases 11 and 12 had not started; Phase 11 has since been completed within its tested QA scope, and Phase 12 remains NOT STARTED.
+Phase 9 files added/changed: `lib/email.ts`, `lib/email.test.cjs`, `lib/email-workflows.ts`, `lib/email-workflows.test.cjs`, `lib/email-workflows.postgres.integration.test.cjs`, booking and invoice Server Actions/UI feedback, `lib/booking/booking-service.ts`, `lib/db.ts`, `.env.example`, `package.json`, `README.md`, and this status document. Phase 9 is implemented and verified within its tested scope: unit/regression tests, the guarded dedicated-PostgreSQL context suite, TypeScript, lint, and production build passed. Live SMTP delivery and production/external databases remain unverified. At the Phase 9 checkpoint, Phase 10 was implemented and verified within its tested scope, while Phases 11 and 12 had not started; Phase 11 has since been completed within its tested QA scope, and Phase 12 has since started (current status in Section 3H).
 
 ## 3F. PHASE 10 — ADMIN DASHBOARD
 
@@ -229,7 +231,7 @@ The dashboard uses normalized tables through Prisma in `lib/db.ts`; it does not 
 
 Phase 10 is **IMPLEMENTED AND VERIFIED WITHIN THE TESTED SCOPE**. Its reported 1/1 PostgreSQL result applies only to the guarded dedicated test database. Production/external databases were not tested. The unrelated lack of live SMTP delivery is a Phase 9 limitation.
 
-Files added/changed for Phase 10: `app/dashboard/admin/page.tsx`, `app/dashboard/admin/loading.tsx`, `app/dashboard/page.tsx`, `lib/admin/dashboard.ts`, `lib/admin/dashboard.test.cjs`, `lib/admin/dashboard-postgres.integration.test.cjs`, `lib/db.ts`, `package.json`, `README.md`, and this status document. Phase 10 is implemented and verified within its tested scope. Production/external databases were not tested. At that checkpoint, Phase 11 and Phase 12 had not started; Phase 11 has since been completed within its tested QA scope, and Phase 12 remains NOT STARTED.
+Files added/changed for Phase 10: `app/dashboard/admin/page.tsx`, `app/dashboard/admin/loading.tsx`, `app/dashboard/page.tsx`, `lib/admin/dashboard.ts`, `lib/admin/dashboard.test.cjs`, `lib/admin/dashboard-postgres.integration.test.cjs`, `lib/db.ts`, `package.json`, `README.md`, and this status document. Phase 10 is implemented and verified within its tested scope. Production/external databases were not tested. At that checkpoint, Phase 11 and Phase 12 had not started; Phase 11 has since been completed within its tested QA scope, and Phase 12 has since started (current status in Section 3H).
 
 ---
 
@@ -241,10 +243,10 @@ Files added/changed for Phase 10: `app/dashboard/admin/page.tsx`, `app/dashboard
 |---|---|---|
 | Password verification and JWT validity | New password tests cover unique salts, correct/wrong passwords, malformed hashes, and digest-length errors. Existing JWT tests cover signatures, expiration, and malformed tokens. | Password/JWT tests do not prove persisted user authentication. |
 | Dashboard route authorization | New Proxy tests cover unauthenticated, malformed/expired sessions, all four roles, permitted route groups, and forbidden cross-role routes. Unknown signed roles now redirect to login. | Server Actions/services still require their own authorization; Proxy coverage is not a substitute. |
-| Public registration boundary | New parser and action tests prove role input is ignored, public registration assigns CUSTOMER, malformed fields are rejected, and database exceptions are returned as generic messages. | `db.user` remains a placeholder; registration/login are not PostgreSQL-backed and login does not establish a persisted session. |
+| Public registration/login boundary | Parser/action tests prove client role input is ignored, public registration assigns CUSTOMER, stored password hashes are checked, duplicate races return a safe result, and register/login/logout set or clear the HTTP-only session cookie. | Action tests mock Prisma and cookies; no guarded PostgreSQL auth integration test was run, so real persistence remains unverified. |
 | Booking, scheduling, mechanic, service-record, inventory, invoice, review, email, and dashboard logic | Existing mocked/unit and regression suites plus the PostgreSQL safety-target guard are included in the combined command below. The current combined run passed 206/206. | These mocks do not establish a current database integration run. |
 | PostgreSQL integration | User ran `npm run test:integration:phase11` in Windows PowerShell: Phase 5 5/5, Phase 6 4/4, Phase 7 6/6, Phase 8 4/4, Phase 9 3/3, Phase 10 1/1; **23 passed, 0 failed across six suites**. | Dedicated local test database only. Production/external database state was not tested. A separate workspace attempt stopped at the explicit guard because its URL variables were unset and Docker was unavailable; it made no database writes. |
-| Browser/end-to-end and UI coverage | Added Playwright 1.64.1 and Chromium. Seven browser tests passed against a local Next server: login form/navigation, unauthenticated redirect, malformed/expired cookie rejection, customer route denial, and role access to provider, customer-booking, and admin pages. | Synthetic test-only JWT cookies exercise route gates, not persisted login. Data-backed pages show their safe load-error state because the test server uses an unreachable loopback database URL. No booking persistence, customer data isolation, mutation authorization, or live database journey is verified. Authentication persistence and vehicle CRUD remain placeholders. |
+| Browser/end-to-end and UI coverage | At the Phase 11 checkpoint, seven browser tests passed against a local Next server. Phase 12 added responsive/focus checks; this increment reran 9/9 browser tests. | Synthetic test-only JWT cookies exercise route gates, not persisted login. Data-backed pages use an unreachable loopback DB; Playwright does not verify persisted auth, vehicle CRUD, booking writes, customer isolation, or live DB behavior. Separate guarded PostgreSQL tests verify auth and vehicle persistence/isolation. |
 | Build, types, lint, and dependency audit | Phase 11 focused and combined tests, TypeScript, ESLint, and production build passed in this workspace. Fresh audits were run with registry access: production-only audit has 0 findings; full audit has 5 high findings in development dependencies. | The shared `braces` advisory has no compatible fix; npm's suggested `eslint-config-next@14.2.35` is a breaking downgrade. No dependency remediation was applied. Production/external databases remain untested. |
 
 ### Phase 11 verification (2026-10-20)
@@ -271,7 +273,117 @@ The six PostgreSQL suite results are user-confirmed Windows PowerShell evidence.
 - Registration/login actions previously returned raw exception messages. They now return generic safe failures; regression tests verify database details do not escape.
 - The unused legacy vehicle-ownership helper previously failed to verify customer/fleet-manager ownership. It now validates IDs and checks repository ownership; focused tests cover owner matches, mismatches, invalid IDs, and privileged roles.
 
-**Phase 11 status: COMPLETE within the defined tested QA scope.** The defined QA work—coverage inventory, focused authentication/authorization regression tests, available regression/static/build/database/security checks, and browser tests for feasible route/auth behaviors—is complete. Evidence: 19 focused tests, 206 combined unit/mock/regression tests, 23 user-reported PostgreSQL integration tests across six guarded suites, and 7 local Playwright tests passed; TypeScript, ESLint, and production build passed. Fresh production-only audit found 0 vulnerabilities; the full audit reports 5 high development dependency findings with no compatible upstream fix, documented as residual risk. The Playwright suite uses synthetic test-only JWT cookies and a deliberately unreachable database; it does not prove persisted login, customer-data isolation, booking writes, or database-backed journeys. Those remain outside this QA closeout because Phase 2 authentication persistence and Phase 3 vehicle CRUD are incomplete. Production/external databases were not tested, and live SMTP remains untested as a Phase 9 limitation. Phase 12 remains NOT STARTED. See [docs/phase-11-qa.md](docs/phase-11-qa.md).
+**Phase 11 status: COMPLETE within the defined tested QA scope.** The defined QA work—coverage inventory, focused authentication/authorization regression tests, available regression/static/build/database/security checks, and browser tests for feasible route/auth behaviors—is complete. At that checkpoint, evidence included 19 focused tests, 206 combined unit/mock/regression tests, 23 user-reported PostgreSQL integration tests across six guarded suites, and 7 local Playwright tests passed; TypeScript, ESLint, and production build passed. Fresh production-only audit found 0 vulnerabilities; the full audit reports 5 high development dependency findings with no compatible upstream fix, documented as residual risk. The Phase 11 Playwright suite used synthetic test-only JWT cookies and a deliberately unreachable database; it did not prove persisted login, customer-data isolation, booking writes, or database-backed journeys. Release Gates A/B later added dedicated PostgreSQL evidence for auth and vehicle operations; see the current Phase 12 record below. Production/external databases were not tested, and live SMTP remains untested as a Phase 9 limitation. Phase 12 had not started at the Phase 11 closeout checkpoint; current status is in Section 3H. See [docs/phase-11-qa.md](docs/phase-11-qa.md).
+**Phase 11 status: COMPLETE within the defined tested QA scope.** The defined QA work—coverage inventory, focused authentication/authorization regression tests, available regression/static/build/database/security checks, and browser tests for feasible route/auth behaviors—is complete. Evidence: 19 focused tests, 206 combined unit/mock/regression tests, 23 user-reported PostgreSQL integration tests across six guarded suites, and 7 local Playwright tests passed; TypeScript, ESLint, and production build passed. Fresh production-only audit found 0 vulnerabilities; the full audit reports 5 high development dependency findings with no compatible upstream fix, documented as residual risk. The Phase 11 Playwright suite uses synthetic test-only JWT cookies and a deliberately unreachable database; it did not prove persisted login, customer-data isolation, booking writes, or database-backed journeys. At the Phase 11 closeout checkpoint, Phase 2 persistence and Phase 3 vehicle CRUD were not complete; the focused Phase 12 Release Gates A/B now provide separate PostgreSQL evidence. Production/external databases were not tested, and live SMTP remains untested as a Phase 9 limitation. Phase 12 was NOT STARTED at the Phase 11 verification checkpoint; current Phase 12 work is in Section 3H. See [docs/phase-11-qa.md](docs/phase-11-qa.md).
+
+## 3H. PHASE 12 — POLISH & DEPLOYMENT
+
+`PLAN.md` lists five Phase 12 tasks but does not provide individual task descriptions. The working checklist in [docs/phase-12-deployment.md](docs/phase-12-deployment.md) derives them from the approved “Polish & Deployment” scope and the project success criteria without changing `PLAN.md`.
+
+| Working item | Status | Evidence / remaining work |
+|---|---|---|
+| UI polish and responsive behavior | PARTIALLY COMPLETE | Responsive landing-page grid, narrow-screen spacing/type, reduced-motion handling, and visible keyboard focus added. Playwright tests check 360, 390, and 768 px and keyboard focus. Full route-by-route mobile and accessibility review remains. |
+| Reliability/performance review | IN PROGRESS | JWT now fails closed in production without a configured 32-character secret. No performance benchmark or broad optimization was performed; assess with evidence before claiming optimization. |
+| Security/runtime hardening | PARTIAL; RELEASE BLOCKED | Gate E consolidated session verification on `jose`, validates required JWT claims, and added focused tests. Production JWT secret guard, persisted auth, and owner-scoped vehicle CRUD are implemented and locally tested. Password hashing remains synchronous PBKDF2-SHA512 at 10,000 iterations; no login throttling or password-reset flow was found. Logout cannot revoke a copied stateless token before expiry. The latest audit was not refreshed; the historical full audit had five high development findings. |
+| Documentation and deployment instructions | PREPARED | `README.md`, this status, and `docs/phase-12-deployment.md` describe target choice, environment, build, SQL safety, smoke checks, rollback, and limitations. |
+| Deployment and database readiness | LOCAL BASELINE VERIFIED; EXTERNAL READINESS NOT VERIFIED | The create-only schema, guarded transaction, initial version ledger, and separate destructive reset were exercised on a new disposable local PostgreSQL database. Production/external database/deployment verification remains outstanding; SMTP is untested. |
+
+### Release Gate E — JWT and session security remediation (2026-10-20)
+
+This verification/remediation gate consolidated server-side JWT verification on `jose` and removed the duplicate custom HMAC verifier from `lib/auth/session.ts`. The verifier explicitly allows HS256, requires `iat` and `exp`, and validates user ID, matching subject, email, Prisma role, and timestamp bounds. Session lookup reloads the current persisted user and role; malformed/expired tokens fail closed. Existing canonical signed tokens remain compatible; issuer/audience claims were not added because the application does not issue them. Positive safe IDs are now required by vehicle ownership authorization. Registration role policy and cookie behavior are unchanged.
+
+Actual local Windows workspace results:
+
+- Focused JWT/session/authorization/vehicle tests: **29 passed, 0 failed**.
+- `npm run test:unit:phase11`: **22 passed, 0 failed**; `npm run test:unit:phase12`: **20 passed, 0 failed**.
+- Combined unit/mock/regression suite: **224 passed, 0 failed**.
+- `npx tsc --noEmit`: passed; `npm run lint`: passed.
+- `npm run build`: passed with Next.js 16.4.0 after the restricted attempt was denied permission to create Next's Prisma junction.
+- `npm run test:e2e`: **9 passed, 0 failed** in Chromium after the restricted attempt hit the same junction permission. Tests use synthetic test-only sessions and an intentionally unreachable database; they do not establish persisted browser login or database-backed browser journeys.
+- `npm run test:integration:phase12`: **1 passed, 0 failed**; `npm run test:integration:phase12:vehicles`: **1 passed, 0 failed** against the guarded, healthy loopback `vehicle_service_test` PostgreSQL database. Read-only preflight confirmed target identity and an empty application schema before running. The suites exercised persisted registration/login/logout and owner-scoped vehicle CRUD/isolation with run-created fixture cleanup. No reset, seed, schema initialization, or production/external database was used.
+- No fresh npm audit was run. Gate D's registry audit was blocked by npm DNS; the last historical result was 0 production findings and 5 high development dependency findings, not a current audit.
+- Live SMTP and production/external database behavior remain unverified.
+
+Gate E changed JWT/session verification, positive-ID authorization validation, focused auth/session/ownership/proxy tests, the Phase 12 unit test script, and this status document. Existing Gate A–D changes and untracked `AGENTS.md` were preserved. No dependency or lockfile changes, commit, push, reset, or deployment occurred. Phase 12 remains **IN PROGRESS**.
+
+Remaining release work includes a production-strength password-hashing review and safe migration path, assessment of login throttling and token revocation needs, a fresh dependency audit when registry access returns, and reviewed non-production hosting/database adoption with backup/restore, rollback, and deployment smoke procedures. Broad accessibility/performance assessment, production/external database verification, and live SMTP remain outstanding.
+
+### Earlier Phase 12 verification runs (historical; Gate E is current below)
+
+- `npm run test:unit:phase12`: **8 passed, 0 failed** (JWT-secret guard and vehicle service validation/authorization tests).
+- `npx tsx --test lib/auth/jwt-secret.test.cjs lib/auth/jwt.test.cjs`: **8 passed, 0 failed** (JWT-secret guard and JWT regression tests).
+- `npm run test:unit:phase11`: **19 passed, 0 failed**.
+- Combined unit/mock/regression command documented in Section 3G, with `lib/auth/jwt-secret.test.cjs` added: **209 passed, 0 failed**.
+- Current release-blocker increment: focused authentication/JWT suite **21 passed, 0 failed**; updated `npm run test:unit:phase11`: **22 passed, 0 failed**; combined unit/mock/regression command with the added JWT-secret tests and expanded auth actions: **212 passed, 0 failed**; `npm run test:unit:phase12`: **3 passed, 0 failed**.
+- `npx tsc --noEmit`: passed; `npm run lint`: passed.
+- `npm run build`: passed with Next.js 16.4.0 after a permission-enabled local rerun; the first restricted attempt failed creating Next's temporary Prisma junction.
+- `npm run test:e2e`: **9 passed, 0 failed** in Chromium. The two Phase 12 additions check horizontal overflow at 360/390/768-pixel widths and visible keyboard focus for the login email input. The test server uses synthetic JWT settings and an unreachable database URL; the suite does not establish persisted login, booking writes, customer-data isolation, or live DB behavior.
+- Release-blocker remediation auth tests: `npx tsx --test lib/auth/actions.test.cjs lib/auth/registration-input.test.cjs lib/auth/password.test.cjs lib/auth/jwt.test.cjs lib/auth/jwt-secret.test.cjs`: **21 passed, 0 failed**. `npm run test:unit:phase11`: **22 passed, 0 failed** after adding session-cookie and duplicate-registration cases. These tests mock the repository/cookie boundary and are not database integration tests.
+- `npx tsc --noEmit`: passed after running sequentially following Next.js generation; an initial concurrent run saw transient missing `.next/types` files.
+- `npm run lint`: passed.
+- `npm run build`: passed with Next.js 16.4.0 in the permission-enabled local workspace. A restricted attempt was blocked by Windows junction/`.next` permissions.
+- `npm run test:e2e`: **9 passed, 0 failed** in Chromium after an elevated local retry. The sandbox attempt could not create Next.js's Prisma junction. E2E still uses synthetic sessions and an unreachable database, so persisted authentication/data isolation are not established.
+- Historical initial `npm run test:integration:phase12` attempt stopped at the explicit target guard with no connection/writes; it was superseded by the successful Release Gate A run recorded below.
+- `git diff --check`: passed with LF-to-CRLF conversion warnings only.
+- `npm audit --omit=dev`: refresh blocked by npm registry DNS `ENOTFOUND registry.npmjs.org`; latest historical Phase 11 audit remains 0 production findings and 5 high development findings, not a fresh Phase 12 audit. Full audit was not rerun because registry access was unavailable.
+- The prior Phase 5–10 PostgreSQL suites were not rerun in this increment. Production/external databases and live SMTP were not tested. A local production-server HTTP smoke was attempted but the server could not be reached from the separate restricted shell; production startup/HTTP remains unverified.
+
+### Release Gates A/B — successful verification results (2026-10-20; rerun in Gate D below)
+
+The repository's dedicated Compose database was verified healthy on the documented loopback endpoint. The shared guard checked database name, user, host, port, and schema. The auth suite passed its empty-target preflight and ran first. The vehicle suite used unique fixtures and verified its connected database identity and `vehicles` table before writing; it does not require or assume an empty database. Both suites clean only their run-created records. No schema initialization, reset, migration, or production/external database was used.
+
+- `npm run test:integration:phase12`: **1 passed, 0 failed**. Verified registration as CUSTOMER, persisted user and non-plaintext password hash, fresh database lookup, signed session-cookie verification, login from stored credentials, and logout cookie clearing.
+- `npm run test:integration:phase12:vehicles`: **1 passed, 0 failed**. Verified persisted vehicle create/fresh read/owner list/update/delete; cross-customer read/update/delete denied; duplicate plate safely rejected; vehicle with booking history retained.
+- `npm run test:unit:phase12`: **8 passed, 0 failed** (JWT-secret and vehicle service tests).
+- Combined unit/mock/regression command: **217 passed, 0 failed**. It adds the focused JWT-secret and vehicle service tests to the established Phase 11 command; integration tests ran separately.
+- Exact combined command: `npx tsx --test lib/booking/booking-service.test.cjs lib/booking/phase5-postgres-test-target.test.cjs lib/auth/jwt.test.cjs lib/auth/legacy-ownership.test.cjs lib/auth/password.test.cjs lib/auth/proxy.test.cjs lib/auth/registration-input.test.cjs lib/auth/actions.test.cjs lib/admin/management.test.cjs lib/service-records/service-record-service.test.cjs lib/invoicing/invoice-service.test.cjs lib/reviews/review-service.test.cjs lib/email.test.cjs lib/email-workflows.test.cjs lib/admin/dashboard.test.cjs lib/auth/jwt-secret.test.cjs lib/vehicles/vehicle-service.test.cjs`.
+- `npx tsc --noEmit`, `npm run lint`, `npm run build` (Next.js 16.4.0), and `npm run test:e2e` (9/9) passed. Build and E2E required a permission-enabled retry because the restricted shell denied creation of Next.js's temporary Prisma junction. E2E uses synthetic sessions and an intentionally unreachable database, so it does not verify persisted auth or database-backed vehicle journeys.
+- `git diff --check`: passed with LF-to-CRLF warnings only.
+- No audit was rerun. The latest recorded audit is historical: `npm audit --omit=dev` had 0 vulnerabilities; full `npm audit` had 5 high findings in development dependencies. No current audit claim is made.
+- `npm run test:database:baseline:static`: **3 passed, 0 failed**. These are static safety/source-wiring checks and are not counted as database tests.
+- Fresh disposable PostgreSQL baseline initialization: **passed** on `vehicle_service_baseline_test` inside the loopback-only no-volume test container; the already populated `vehicle_service_test` database was not modified.
+- `git diff --check`: passed; Git emitted only LF-to-CRLF conversion warnings for the repository's existing working-copy configuration.
+- No production/external database, deployment, or live SMTP was tested.
+
+**Phase 12 status: IN PROGRESS.** Gate D reran static baseline checks (3/3), Phase 11 tests (22/22), Phase 12 tests (8/8), combined unit/mock/regression tests (217/217), auth integration (1/1), vehicle integration (1/1), six Phase 5–10 PostgreSQL suites (23/23), TypeScript, lint, Next.js 16.4.0 build, and Playwright (9/9). Gate C's separate local baseline evidence is user-reported and was not rerun. Fresh dependency audits were blocked by registry DNS; last recorded audit had 0 production findings and 5 high development findings. Production/external database, hosting, live SMTP, broad accessibility review, and performance benchmarks remain unverified. No deployment was initiated.
+
+### Release Gate C — safe database baseline (2026-10-20)
+
+The previous repository had no migration ledger or baseline runner. Its checked-in `database/schema.sql` began with destructive table/type drops. The schema definitions have now been made create-only, while that reset behavior was moved into the clearly labeled `database/reset.sql`. The new `database/baseline.sql` preflights PostgreSQL catalogs for non-system schemas and user relations, types, and routines; refuses an existing or partially initialized target; and uses `ON_ERROR_STOP` plus a single transaction. The baseline records `20261020_001` only after all required SQL files complete. On error, psql stops and closing the uncommitted session rolls back the DDL and tracking row.
+
+The baseline reuses, without copying definitions, `schema.sql`, `functions.sql`, `triggers.sql`, `views.sql`, and `indexes.sql`. It excludes sample data. The three pre-existing migrations have no ledger records; the current baseline includes their resulting booking statuses and scheduling objects, so they must not be replayed after this baseline. Existing/partially initialized databases require a separately reviewed owner-approved adoption/migration plan.
+
+Schema inventory from the current SQL source: 14 tables (`users`, `vehicles`, `service_center`, `service_center_hours`, `mechanics`, `service_types`, `parts`, `bookings`, `services`, `service_parts`, `invoices`, `reviews`, `notifications`, `audit_logs`); enums `user_role`, `booking_status`, and `invoice_status`; serial integer primary keys except the composite service-center-hours key; foreign keys and unique/check constraints as declared in `schema.sql`; the capacity index plus declared query indexes; the `update_updated_at_column`, `calculate_invoice_totals(integer)`, and `deduct_part_inventory` functions; nine timestamp triggers and `trg_deduct_inventory`; and three runtime views (`vw_customer_booking_history`, `vw_low_stock_parts`, `vw_service_analytics`). `analytics.sql` contains ad-hoc CTE/window examples rather than required runtime objects and is excluded from baseline. `seed.sql` is optional development fixture data and is excluded.
+
+Prisma models and SQL tables/types/relationships broadly align. SQL adds CHECK constraints (for example vehicle year/mileage, nonnegative prices/stock/labor, positive service duration/part quantity, schedule windows, and rating range) that Prisma cannot express in this schema; these remain enforced by PostgreSQL and are not represented as Prisma validation. The SQL `idx_*` definitions duplicate indexes already created for several `UNIQUE` constraints (email, license plate, part number); this is a storage/performance redundancy in the existing source, not changed by this baseline task. `analytics.sql` currently has a malformed monthly growth expression and is not installed or required by the runtime baseline; it remains a separate existing SQL example limitation.
+
+Verification for this increment: the baseline initialized and committed successfully on the newly created local disposable target. Read-only catalog checks found 15 public tables including the ledger, 3 views, 3 enum types with 14 labels, both required workflow functions, and 10 triggers. A transactionally rolled-back representative service/part operation returned subtotal 120.00, tax 21.60, total 141.60 and deducted stock from 3 to 1. Baseline reruns were rejected against populated and partially initialized targets. A temporary injected failure after DDL/ledger insertion caused psql to fail and left zero public relations, custom types, or routines. Static tests passed 3/3. These results validate the local safe initialization workflow only; the existing populated integration database was not modified, and production/external database initialization remains unverified.
+
+### Release Gate D — deployment-readiness review (2026-10-20)
+
+Repository checkpoint: branch `main`, HEAD `22bc09b` (`test: complete phase 11 quality assurance`). Existing uncommitted Gate A–C work and untracked `AGENTS.md` were preserved. No files were staged, committed, pushed, reset, or cleaned. Integration suites used the guarded loopback `vehicle_service_test` database with current-process environment variables only; the separate baseline initialization target was not rerun. The disposable database identity was verified read-only and its application tables were empty before the integration runs. No production/external database was contacted.
+
+- `npm run test:database:baseline:static`: **3 passed, 0 failed** (static source/safety wiring only; not database execution).
+- `npm run test:unit:phase11`: **22 passed, 0 failed**.
+- `npm run test:unit:phase12`: **8 passed, 0 failed**.
+- Combined unit/mock/regression command recorded in Section 3H: **217 passed, 0 failed**.
+- `npm run test:integration:phase12`: **1 passed, 0 failed** (persisted customer registration, forced CUSTOMER role despite supplied ADMIN, stored password hash/fresh lookup, signed session, login, logout cookie clearing). Duplicate registration is covered by mocked/unit tests, not this PostgreSQL scenario.
+- `npm run test:integration:phase12:vehicles`: **1 passed, 0 failed** against the same guarded dedicated database (persisted CRUD, owner-scoped listing, cross-customer read/update/delete denial, duplicate plate handling, and booking-history deletion protection).
+- `npm run test:integration:phase11`: **six suites passed, 23 passed, 0 failed** against the guarded dedicated database: Phase 5 5/5, Phase 6 4/4, Phase 7 6/6, Phase 8 4/4, Phase 9 3/3, Phase 10 1/1. Together with Gate A/B, Gate D executed eight guarded integration suites and 25 passing test results. Suites clean only run-created fixtures. No reset, seed, baseline, or schema initialization ran against this populated integration target.
+- `npx tsc --noEmit`: passed; `npm run lint`: passed.
+- `npm run build`: passed with Next.js 16.4.0, including compile, type checks, static generation, and optimization. The restricted shell first failed on Windows permission creating Next's temporary Prisma junction; the permission-enabled rerun passed without a code change.
+- `npm run test:e2e`: **9 passed, 0 failed** in Chromium. It covers protected route access, safe data-load error rendering with an unreachable database, narrow home-page overflow at 360/390/768 px, and visible login focus. Synthetic sessions are test-only. It does not prove persisted browser login, booking writes, customer isolation through the browser, or full database-backed journeys.
+- `npm audit --omit=dev` and `npm audit`: both blocked at registry retrieval by `getaddrinfo ENOTFOUND registry.npmjs.org`; these are not fresh audit results. Current installed-tree inspection shows `eslint-config-next@16.4.0 → @next/eslint-plugin-next@16.4.0 → fast-glob@3.3.1 → micromatch@4.0.8 → braces@3.0.3`. Historical latest audit evidence (2026-10-20, before this Gate D attempt) was 0 production findings and 5 high development dependency findings; no breaking downgrade/override was applied. Continue disclosing the residual until registry data and compatible remediation are available.
+- `git diff --check`: passed; only LF-to-CRLF conversion warnings were reported.
+
+**Review findings and release decision:**
+
+- **Database:** Gate C's user-reported local baseline/rollback evidence remains valid for that disposable empty database only. `baseline.sql` refuses non-empty/partial targets and transactionally includes `schema.sql`, functions, triggers, views, indexes, and ledger insertion. Normal setup uses the baseline only for a separately verified empty target; the destructive reset and optional sample seed are excluded from normal setup. No general migration runner exists; historical migration files have no ledger history, so adopting an existing hosted database remains a separately reviewed operation. SQL CHECK constraints exceed Prisma's representation; redundant unique indexes and a malformed non-runtime analytics example remain documented.
+- **Authentication (Gate D finding, superseded by Gate E):** Gate A tested focused persisted registration/login/logout but not duplicate registration against PostgreSQL, password reset, token revocation, broader login abuse behavior, or browser-driven database auth. At Gate D, vehicle actor resolution used a separate hand-written JWT parser; Gate E consolidated verification on `jose`, requires and validates claims, and added regression tests. Logout still cannot revoke a copied stateless JWT before expiry. Password hashing is synchronous PBKDF2-HMAC-SHA512 with 10,000 iterations; benchmark and migrate to a stronger asynchronous password-hashing configuration before production. No login rate limiter was found in reviewed application code.
+- **UI/performance:** Browser evidence establishes only the listed landing-page widths, focus indicator, and selected route/error behavior. It is not a full-page responsive/accessibility audit. Existing data pages demonstrate loading, empty, and safe error states, but broad route/state coverage is incomplete. No performance measurements or load benchmarks exist, so no optimization claim is made. Some data tables use horizontal overflow containers by design.
+- **Deployment:** Vercel plus managed PostgreSQL remains a proposal, not configured or tested. Local build success does not verify host runtime, connection pooling/TLS, SMTP, schema adoption, backup/restore, rollback, or production smoke behavior. No public deployment was authorized or performed.
+
+**Status at Gate D: Phase 12 remained IN PROGRESS and was not production-ready.** Gate E has since completed JWT parser consolidation and required claim validation. Password-hash review, login throttling assessment, fresh audit when registry access returns, a non-production hosted database/adoption plan, and deployment smoke/rollback procedures remain. Full responsive/accessibility and measured performance work also remain. External database/hosting and live SMTP remain unverified. See the current Gate E record above.
 
 ---
 
@@ -334,7 +446,7 @@ Proxy route checks plus Server Action/service authorization and ownership checks
 - `proxy.ts` — Dashboard route guard: `/dashboard/admin` → ADMIN, `/dashboard/provider` → SERVICE_PROVIDER/ADMIN, `/dashboard/customer` → CUSTOMER/FLEET_MANAGER/ADMIN. Mutations still require their own server-side checks.
 - `lib/auth/permissions.ts` — `checkRole`, `verifyVehicleOwnership` server-side helpers
 
-**RBAC roles**: `CUSTOMER`, `SERVICE_PROVIDER`, `FLEET_MANAGER`, `ADMIN`. Effective access is limited to the route guards and feature-specific server checks that are implemented. This is not a claim of complete role-wide CRUD; user and vehicle persistence remain incomplete.
+**RBAC roles**: `CUSTOMER`, `SERVICE_PROVIDER`, `FLEET_MANAGER`, `ADMIN`. Effective access is limited to the route guards and feature-specific server checks that are implemented. This is not a claim of complete role-wide CRUD; authentication persistence has focused PostgreSQL evidence, and the customer vehicle workflow is owner-scoped for CUSTOMER/FLEET_MANAGER.
 
 **Implemented security primitives**:
 - Node.js crypto PBKDF2-SHA512 password hashing (10,000 iterations)
@@ -343,28 +455,29 @@ Proxy route checks plus Server Action/service authorization and ownership checks
 - Role-based Proxy protection and server-side checks in feature services/actions
 - Password reset is not implemented
 
-**Persistence limitation**: the current `db.user.findUnique`/`create` methods in `lib/db.ts` are placeholders (lookup returns `null`, create returns a fabricated record). Registration/login are therefore not an end-to-end PostgreSQL-backed authentication flow. The standalone JWT tests verify token logic, not persisted authentication or all RBAC paths. Phase 2 is partial, not complete.
+**Persistence status (current worktree)**: `db.user.findUnique` and `db.user.create` call Prisma/PostgreSQL; registration creates only CUSTOMER accounts, login verifies the stored password hash, and successful register/login establish a signed HTTP-only cookie. A guarded PostgreSQL integration test passed registration, persisted user/password-hash lookup, login, cookie validation, and logout clearing. Duplicate email race and generic error behavior are covered by mocked tests. Password reset and broader authentication/RBAC acceptance remain outside the verified path.
 
 ---
 
 ### Phase 3 — Vehicle Management
 
-**Vehicle route and form scaffolding** (not a completed PostgreSQL-backed CRUD feature):
+**PostgreSQL-backed customer vehicle workflow** (verified within the tested scope):
 
-- **Vehicle listing route** — `/dashboard/customer/vehicles` — current page is placeholder UI
-- **Add vehicle form** — `/dashboard/customer/vehicles/new` — submits through a placeholder adapter and fixed owner ID; not persisted or owner-enforced
-- **Vehicle detail/edit routes** — UI files exist; they do not establish working PostgreSQL CRUD
-
-- **Delete behavior** — no persisted dependent-record protection is established
+- **List/create/detail/edit/delete routes** — `/dashboard/customer/vehicles`, `/new`, `/[id]`, and `/[id]/edit` use the authenticated account and real Prisma persistence.
+- **Ownership boundary** — server pages and actions derive the actor from the verified session and current persisted user role; service operations accept only CUSTOMER/FLEET_MANAGER and scope each repository lookup/update/delete by owner ID. Submitted owner IDs are rejected by strict input validation.
+- **Validation and conflicts** — make/model/year/license plate/VIN/mileage are validated server-side against the existing SQL limits; unique license plate/VIN violations return safe errors.
+- **Delete safety** — SQL defines vehicle-to-booking `ON DELETE CASCADE`, so the repository transaction locks the owned vehicle and refuses deletion if it has booking history. No schema change was needed.
 
 **Key files**:
 - `app/dashboard/customer/vehicles/page.tsx` — vehicle list page
 - `app/dashboard/customer/vehicles/[id]/edit/page.tsx` — edit vehicle
 - `app/dashboard/customer/vehicles/new/page.tsx` — new vehicle form
-- `lib/db.ts` — vehicle CRUD methods (findUnique, create, updateVehicle, deleteVehicle)
+- `lib/db.ts` — Prisma owner-scoped vehicle list/read/create/update/delete methods
+- `lib/vehicles/vehicle-service.ts` — authorization, validation, and safe CRUD results
+- `lib/vehicles/vehicle-service.test.cjs` and `lib/vehicles/phase12-postgres.integration.test.cjs` — mocked/service and guarded PostgreSQL coverage
 - `lib/auth/permissions.ts` — `verifyVehicleOwnership`
 
-The current vehicle list is placeholder UI. The add page is a client component that submits a hard-coded `ownerId: 1` to the placeholder `db.vehicle.create`; the vehicle read/create/update/delete methods in `lib/db.ts` are not Prisma persistence. Consequently, no persisted owner-scoped vehicle CRUD or IDOR prevention is established by the current implementation. Do not treat the old route descriptions below as proof of working vehicle operations.
+Earlier scaffold descriptions below were superseded by Phase 12 Release Gate B. Current evidence is recorded in Section 3H: the unit suite tests owner derivation, forged owner rejection, unauthorized reads/mutations, validation, uniqueness, safe errors, and booking-history deletion protection; the guarded PostgreSQL test verifies persisted CRUD and customer A's inability to read/update/delete customer B's vehicle.
 
 **Intended validation fields in the current form**:
 - Required fields: make, model, year, license_plate
@@ -372,7 +485,7 @@ The current vehicle list is placeholder UI. The add page is a client component t
 - license_plate UNIQUE constraint
 - mileage >= 0
 
-**Schema**: the SQL `vehicles` table and Prisma model define owner and vehicle columns/relations, but current UI/adapter code does not use Prisma for vehicle persistence. No dedicated PostgreSQL vehicle CRUD verification is recorded. Phase 3 is partial.
+**Schema**: existing SQL and Prisma definitions were reused unchanged. Phase 3 is complete within the tested customer CRUD and ownership scope; browser-driven database CRUD and production/external database behavior remain unverified.
 
 ---
 
@@ -460,7 +573,7 @@ CREATE TABLE mechanics (
 | **Backend** | Next.js 16 App Router, Server Actions, Node.js Proxy | Route handlers, form submissions, dashboard route guard |
 | **Database** | PostgreSQL 14+ (SQL-First) | All schemas in `database/*.sql`, Prisma for type generation |
 | **ORM** | Prisma | Type-safe PostgreSQL access in implemented workflows and client generation; SQL files remain the schema/migration source of truth |
-| **Authentication** | Node.js crypto PBKDF2, jose (JWT), HTTP-only cookies | JWT/password primitives exist; persisted user adapter remains a placeholder |
+| **Authentication** | Node.js crypto PBKDF2, jose (JWT), HTTP-only cookies | Prisma-backed user lookup/create and session actions; focused dedicated-PostgreSQL integration passed in Release Gate A |
 | **Validation** | Zod, React Hook Form | Installed dependencies; usage varies by feature |
 | **Email** | Nodemailer (SMTP) | Phase 9 workflow integrated; live SMTP delivery untested |
 | **Testing** | Node.js built-in test runner, `tsx`, Playwright 1.64.1 | Focused `.test.cjs` unit/mock, guarded PostgreSQL integration, and limited local Chromium route/auth E2E; Jest and React Testing Library are not configured |
@@ -549,7 +662,7 @@ CREATE TABLE mechanics (
 
 ### Current limitation
 
-`lib/db.ts`'s user lookup returns `null` and user creation returns a fabricated record. The Server Actions therefore do not provide working PostgreSQL-backed registration/login. `getCurrentUserFromHeaders` also relies on this placeholder lookup. The JWT suite verifies token behavior only; it does not verify persisted authentication or all role paths. A development fallback JWT secret remains in code/example configuration and must never be used for deployment. Phase 2 is partial.
+The current Server Actions call Prisma-backed user lookup/create and establish/clear the `apex_session` cookie. `getCurrentUserFromHeaders` resolves persisted users through the same adapter. Release Gate A's guarded PostgreSQL test verified registration, persisted user/password-hash lookup, login, session-cookie verification, and logout clearing (1/1). This focused run does not establish every authentication or authorization journey. A development fallback JWT secret remains available outside production and must never be used for deployment. Broader session/RBAC review remains.
 
 ---
 
@@ -561,13 +674,13 @@ CREATE TABLE mechanics (
 |---|---|---|
 | **ADMIN** | Admin, provider, and customer dashboard prefixes allowed by `proxy.ts` | Implemented admin and provider operations where server handlers allow them |
 | **SERVICE_PROVIDER** | `/dashboard/provider` | Provider booking, service-record, and invoice operations after server checks |
-| **FLEET_MANAGER** | `/dashboard/customer` | Customer booking routes; vehicle persistence is incomplete |
-| **CUSTOMER** | `/dashboard/customer` | Customer booking routes; vehicle persistence is incomplete |
+| **FLEET_MANAGER** | `/dashboard/customer` | Customer booking and own-vehicle CRUD routes |
+| **CUSTOMER** | `/dashboard/customer` | Customer booking and own-vehicle CRUD routes |
 
 ### Permission enforcement:
 - **Server-side only**: Never trust client-supplied role
 - **Proxy**: `proxy.ts` gates dashboard routes by signed JWT role; it is not a substitute for authorization in mutations.
-- **Server features**: implemented Server Actions/services repeat role and ownership checks where applicable; legacy vehicle/user adapters remain incomplete.
+- **Server features**: implemented Server Actions/services repeat role and ownership checks where applicable; user and customer vehicle persistence use Prisma/PostgreSQL within the recorded test scopes.
 - **Database-level**: foreign keys and constraints protect relational integrity; application checks enforce role/ownership policies.
 
 ---
@@ -595,7 +708,7 @@ CREATE TABLE mechanics (
       ├── /confirmed — CONFIRMED queue with mechanic assignment and Start Service actions (Phases 4C.8–4C.9)
       └── /in-progress — IN_PROGRESS queue with server-authorized completion action (Phase 4C.12)
 /dashboard/customer — CUSTOMER or FLEET_MANAGER
-  ├── /vehicles — vehicle UI scaffolding (persistence incomplete)
+  ├── /vehicles — owner-scoped Prisma-backed vehicle CRUD
   └── /bookings
       ├── /new — create a PENDING booking using server-checked available slots (Phases 4C.1, 4C.10)
       └── /[id] — view an owned booking; edit notes or reschedule while PENDING (Phases 4C.4, 4C.11)
@@ -623,7 +736,7 @@ app/
 ├── login/ and register/
 ├── dashboard/
 │   ├── admin/ (dashboard, service-center, schedule, mechanics)
-│   ├── customer/ (bookings and vehicle UI scaffolding)
+│   ├── customer/ (bookings and owner-scoped vehicle CRUD)
 │   ├── provider/ (bookings, service completion, invoices)
 │   ├── invoices/[id]/
 │   └── service-records/
@@ -634,27 +747,27 @@ lib/
 ├── booking/ (service, scheduling, unit and PostgreSQL tests)
 ├── invoicing/, reviews/, service-records/
 ├── email.ts, email-workflows.ts and tests
-└── db.ts (Prisma-backed feature repositories; legacy user/vehicle adapters are placeholders)
+└── db.ts (Prisma-backed booking, user, and owner-scoped vehicle repositories)
 database/ (schema.sql, migrations/, functions.sql, triggers.sql, views.sql, indexes.sql, analytics.sql, seed.sql)
 prisma/schema.prisma
 proxy.ts
 ```
 
-`database/schema.sql` is destructive and must only be used for a newly created disposable database. `docs/phase-5-postgres-test-setup.md` documents guarded local test setup. Dedicated integration runs do not establish production/external database state.
+`database/schema.sql` is now the create-only schema source used by `database/baseline.sql`; `database/reset.sql` is the separately labeled destructive developer reset. The fresh baseline initialized and passed guard/rollback checks on a separate disposable database in the local loopback-only container. `docs/phase-5-postgres-test-setup.md` documents the separate integration target. Release Gates A/B used the existing dedicated integration database and did not initialize a fresh database; none of these local tests establishes production/external database state.
 
 ---
 
 ## 11. REMAINING IMPLEMENTATION AND VERIFICATION LIMITS
 
-- **Phase 2 authentication persistence** — PARTIAL: `lib/db.ts` user lookup returns `null` and user creation returns a fabricated record. JWT/password primitives and Proxy checks exist, but persisted registration/login is incomplete and unverified.
-- **Phase 3 vehicle management** — PARTIAL: current list is placeholder UI and the add form supplies a fixed `ownerId`; `db.vehicle` CRUD methods are placeholders, not PostgreSQL persistence or owner-scoped CRUD.
+- **Phase 2 authentication persistence** — IMPLEMENTED; Release Gate A's guarded PostgreSQL test verified customer registration, persisted password hash/user lookup, login session, and logout clearing (1/1). Broader auth journeys remain outside that focused integration scenario.
+- **Phase 3 vehicle management** — IMPLEMENTED AND VERIFIED WITHIN TESTED SCOPE; Release Gate B unit tests and guarded PostgreSQL integration verified owner-scoped list/read/create/update/delete, cross-customer isolation, duplicate license-plate handling, and preservation of vehicles with booking history. Browser-driven database CRUD and production/external database behavior remain unverified.
 - **Mechanic shift calendars** — NOT IMPLEMENTED: appointment capacity uses active mechanics as center-wide capacity; individual shifts are not modeled.
 - **Parts catalog/restocking UI** — NOT IMPLEMENTED: Phase 6 covers service records and consumed parts/stock deduction only.
 - **Payments** — NOT IMPLEMENTED and excluded by `PLAN.md`; the project implements invoices without payment processing.
 - **Live SMTP delivery, outbox, and automatic retry** — SMTP has not been live-tested; delivery is best-effort after commit and there is no durable outbox or automatic retry.
 - **Production/external database verification** — NOT DONE: the recorded PostgreSQL integration suites use the dedicated test DB and do not verify production/external schema, migration, or runtime state.
-- **Phase 11 Testing & Quality Assurance** — COMPLETE within its defined tested scope. Focused/combined runs passed 19/19 and 206/206; the user-reported Phase 5–10 integration suites passed 23/23 against the dedicated local PostgreSQL database; seven Playwright route/auth tests passed against a local server; TypeScript, ESLint, and production build passed. Residual limitations: authentication persistence and vehicle CRUD are incomplete; E2E does not establish customer-data isolation or persisted workflows; production/external DBs remain untested; five high development dependency audit findings remain without a compatible fix.
-- **UI polish/deployment hardening (Phase 12)** — NOT STARTED; deployment configuration and production-readiness review are not complete.
+- **Phase 11 Testing & Quality Assurance** — COMPLETE within its defined tested scope. Focused/combined runs passed 19/19 and 206/206; the user-reported Phase 5–10 integration suites passed 23/23 against the dedicated local PostgreSQL database; seven Playwright route/auth tests passed against a local server; TypeScript, ESLint, and production build passed. At that closeout, auth persistence and vehicle CRUD had not been completed; this later increment implements persisted auth but does not verify it against PostgreSQL. E2E does not establish customer-data isolation or database-backed workflows; production/external DBs remain untested; five high development dependency audit findings remain without a compatible fix.
+- **UI polish/deployment hardening (Phase 12)** — IN PROGRESS; responsive/accessibility improvements, production JWT guard, Prisma-backed registration/login/session actions, owner-scoped vehicle CRUD, operator guidance, and a locally verified guarded baseline are implemented. Broader polish, production/external database, and hosting verification remain outstanding.
 - **Analytics beyond the Phase 10 operational dashboard** — NOT INTEGRATED: SQL views and CTE/window-function examples exist, but the dashboard does not use them; no installation is assumed on arbitrary databases.
 
 ---
@@ -665,10 +778,10 @@ proxy.ts
 ## CURRENT STOP POINT
 ```
 
-This is the current stop point, not a claim that all product requirements or production readiness are complete. Phase 2 authentication persistence and Phase 3 vehicle CRUD remain partial. Phase 4A/4B service-center and mechanic features have mocked management coverage (13 tests), while dedicated PostgreSQL CRUD verification is not recorded. Phase 4C.1–4C.12 and the implemented Phase 6 service-record/parts-consumption scope have dedicated PostgreSQL evidence. Phase 7 invoicing is verified within tested scope by six dedicated PostgreSQL integration tests and eight unit tests. Phase 8 reviews passed 11 unit, 150 regression, and 4 dedicated PostgreSQL integration tests. Phase 9 email behavior passed 10 unit, 161 regression, and 3 guarded PostgreSQL context tests; live SMTP remains untested and delivery is best-effort without outbox/retry. Phase 10 admin dashboard passed 3 unit, 184 regression, and 1 guarded dedicated-PostgreSQL integration test. Phase 11 is COMPLETE within its defined tested QA scope: 19 focused tests, 206 combined unit/mock/regression tests, 23 dedicated PostgreSQL integration tests across six Phase 5–10 suites, and 7 local Playwright route/auth tests; TypeScript, lint, production build, and both audits were run in this workspace. The production-only audit had 0 findings; the full audit retains 5 high development dependency findings. Browser E2E does not validate persisted login, customer data isolation, booking writes, or live database behavior. All recorded PostgreSQL results apply only to the dedicated test database; production/external databases were not tested. Phase 12 remains NOT STARTED.
+This is the current stop point, not a claim that all product requirements or production readiness are complete. Gate E on 2026-10-20 reran focused auth/vehicle tests (29/29), Phase 11 tests (22/22), Phase 12 tests (20/20), the combined unit/mock/regression suite (224/224), two guarded PostgreSQL integration suites (2/2) against the dedicated local database, TypeScript, lint, Next.js 16.4.0 production build, and Playwright (9/9). The earlier Gate D baseline/static, eight guarded PostgreSQL suites (25/25), and other checks remain separately recorded. Gate C's separate disposable-database baseline results remain user-reported and were not rerun in Gate E. No production/external database was contacted or deployment performed. Fresh audit commands were blocked by registry DNS; the last historical audit showed 0 production and 5 high development findings. Gate E resolved the JWT verifier discrepancy; password-hashing assessment and broad accessibility/performance review remain. Phase 12 remains IN PROGRESS. See Section 3H and `docs/phase-12-deployment.md`.
 
 - Customers can submit a new booking request for their own vehicle and an existing service type. Requests are created with `PENDING` status.
-- Booking creation and Phase 4 service-center/mechanic management use Prisma against PostgreSQL. Legacy user and vehicle adapters in `lib/db.ts` still contain placeholders; booking and management writes do not use in-memory data.
+- Booking creation, user lookup/create, and customer vehicle CRUD use Prisma against PostgreSQL. Phase 4 service-center/mechanic management also uses Prisma. Authentication and vehicle paths have focused Release Gate A/B integration evidence on the dedicated test database; booking and management writes do not use in-memory data.
 - Admin service-center management at `/dashboard/admin/service-center` reads the configured record from Prisma and saves validated name, address, phone, email, and operating-hours values. The server action checks the signed session role and updates only the current center's allowed columns; it cannot change the center ID, timezone, or structured schedule. The appointment scheduling page remains separate and unchanged.
 - Admin mechanic management at `/dashboard/admin/mechanics` lists actual mechanics for the configured center and provides create, edit, active-status, and delete/deactivate flows. Server actions validate fields, derive the service-center ID from the database, and scope writes to it. The protected page/action path enforces ADMIN regardless of Proxy visibility.
 - Mechanic delete preserves historical booking/service links: unreferenced records are deleted; records referenced by bookings or services are deactivated instead. Persistence is serialized with scheduling/assignment through the service-center lock, and the mechanic row is locked before dependency checks.
@@ -811,15 +924,16 @@ Official PLAN Phase 11 — Testing & Quality Assurance — COMPLETE within the d
   • E2E tests (Playwright)
   • Security audits
 
-Official PLAN Phase 12 — Polish & Deployment — NOT STARTED
-  • Responsive UI improvements
-  • Vercel deployment configuration
-  • Production hardening
+Official PLAN Phase 12 — Polish & Deployment — IN PROGRESS (working checklist and evidence in Section 3H)
+  • Responsive UI and focus improvements: partial, narrow viewport browser tests added
+  • Production JWT secret enforcement: implemented; focused Prisma-backed authentication persistence verified against dedicated PostgreSQL in Release Gate A
+  • Deployment target and operator guidance: prepared, no hosting configuration/deployment performed
+  • Safe local baseline: initialized and validated on a separate disposable PostgreSQL database; production/external verification and deployment remain outstanding
 
 The original plan has 39 tasks across 12 phases; remaining work is not re-estimated here.
 ```
 
-> **Note**: Custom Phase 4C tracking decomposes official `PLAN.md` Phase 5 — Booking System into tasks 4C.1–4C.12. The booking scope is verified by 5 PostgreSQL integration tests plus 146 mocked/unit and safety-guard tests. Phase 6’s service-record/parts-consumption scope is separately verified by 4 PostgreSQL tests in the user’s Windows PowerShell environment. Phase 7 invoicing is verified within its tested scope by 6 PostgreSQL integration tests against the dedicated test database; this does not verify production or external database migrations. Phase 8 review submission/display is implemented and verified within its tested scope by 11 unit tests, 150 regression tests, and 4 dedicated PostgreSQL integration tests; TypeScript, lint, and production build passed. Phase 9 email notification behavior is implemented and verified within its tested scope: 10 unit tests, 161 regression tests, and 3 guarded PostgreSQL integration tests passed, along with TypeScript, lint, and production build. The database suite used only the dedicated test database. Live SMTP and production/external databases remain untested; delivery is best-effort without an outbox or automatic retry. Phase 10 admin dashboard is implemented and verified within its tested scope: 3 unit tests, 184 regression tests, 1 guarded dedicated-PostgreSQL integration test, TypeScript, lint, production build, and `git diff --check` passed. The Phase 10 integration test used only the dedicated test database; production/external databases remain untested. Live SMTP is an untested Phase 9 limitation. Phase 11 is COMPLETE within the defined tested QA scope (see Section 3G); Phase 12 remains NOT STARTED.
+> **Note**: Custom Phase 4C tracking decomposes official `PLAN.md` Phase 5 — Booking System into tasks 4C.1–4C.12. The booking scope is verified by 5 PostgreSQL integration tests plus 146 mocked/unit and safety-guard tests. Phase 6’s service-record/parts-consumption scope is separately verified by 4 PostgreSQL tests in the user’s Windows PowerShell environment. Phase 7 invoicing is verified within its tested scope by 6 PostgreSQL integration tests against the dedicated test database; this does not verify production or external database migrations. Phase 8 review submission/display is implemented and verified within its tested scope by 11 unit tests, 150 regression tests, and 4 dedicated PostgreSQL integration tests; TypeScript, lint, and production build passed. Phase 9 email notification behavior is implemented and verified within its tested scope: 10 unit tests, 161 regression tests, and 3 guarded PostgreSQL integration tests passed, along with TypeScript, lint, and production build. The database suite used only the dedicated test database. Live SMTP and production/external databases remain untested; delivery is best-effort without an outbox or automatic retry. Phase 10 admin dashboard is implemented and verified within its tested scope: 3 unit tests, 184 regression tests, 1 guarded dedicated-PostgreSQL integration test, TypeScript, lint, production build, and `git diff --check` passed. The Phase 10 integration test used only the dedicated test database; production/external databases remain untested. Live SMTP is an untested Phase 9 limitation. Phase 11 is COMPLETE within the defined tested QA scope (see Section 3G); Phase 12 had not started at that historical checkpoint and is now IN PROGRESS (see Section 3H).
 
 ---
 
@@ -887,7 +1001,7 @@ Explicit PostgreSQL transactions with row-level locking (`SELECT ... FOR UPDATE`
 Booking workflow: `PENDING → CONFIRMED → IN_PROGRESS → COMPLETED → INVOICED`, with `PENDING → CANCELLED` as a separate terminal customer outcome and `PENDING → REJECTED` as a separate terminal provider outcome. Confirmation, customer cancellation, provider rejection, service start/completion, mechanic assignment, pending-only owner edit/rescheduling, Phase 6 service record creation, and Phase 7 invoice issuance enforce state and role/ownership rules through conditional or transactional database writes. Phase 7 invoice behavior is verified by 6 integration tests against the dedicated PostgreSQL test database; production/external database verification is not included.
 
 ### Authentication
-JWT signing/verification uses `jose`, password hashing uses Node.js crypto PBKDF2-SHA512, and session handling uses an HTTP-only cookie. The `db.user` adapter remains a placeholder, so persisted login/registration is incomplete. Never trust client-supplied roles; Proxy routing does not replace Server Action/service authorization.
+Server JWT verification uses the shared `jose` verifier in `lib/auth/jwt.ts`, including the vehicle actor path; it requires HS256, expiry/issued-at claims, and validates user ID, subject, email, role, and timestamps. `lib/auth/session.ts` loads the current persisted user after token verification. Release Gate A verified persisted registration/login/logout on the dedicated test database, and Gate E added focused claim/session tests. Password hashing remains synchronous PBKDF2-HMAC-SHA512 with 10,000 iterations and still needs a production-strength review. Registration ignores client-supplied roles and assigns CUSTOMER. Proxy routing does not replace Server Action/service authorization. Logout clears the cookie but cannot revoke an already copied stateless token before expiry.
 
 ### Single Service Center
 The project operates as a single service center model. No multi-location support. All mechanics, bookings, and parts belong to one service center.
@@ -897,7 +1011,7 @@ The project operates as a single service center model. No multi-location support
 ## 16. KNOWN LIMITATIONS / TECHNICAL DEBT
 
 ### Mock/In-Memory DB Behavior
-Legacy user and vehicle methods in `lib/db.ts` remain placeholders. Implemented booking, service-record, invoice, review, email-context, and admin-dashboard workflows use Prisma/PostgreSQL and have the dedicated test-database evidence listed above. Phase 4A/4B service-center/mechanic CRUD has mocked management coverage, but a dedicated PostgreSQL CRUD integration result is not recorded. Production/external database connectivity and migrations remain unverified.
+At the Phase 11 checkpoint, auth persistence and vehicle CRUD had no dedicated integration evidence. Release Gates A/B now provide focused dedicated-test-database evidence for registration/login/logout and owner-scoped vehicle CRUD/isolation. Booking, service-record, invoice, review, email-context, and admin-dashboard workflows also have the dedicated test-database evidence listed above. Phase 4A/4B service-center/mechanic CRUD has mocked management coverage, but a dedicated PostgreSQL CRUD integration result is not recorded. Production/external database connectivity and migrations remain unverified.
 
 ### Incomplete Test Coverage
 The repository uses Node's built-in test runner through `tsx` for focused `.test.cjs` suites. Playwright 1.64.1 and Chromium are configured for a limited Phase 11 browser suite; Jest and React Testing Library remain unconfigured. The focused suite passed 19/19, combined unit/mock/regression run passed 206/206, the user-reported dedicated PostgreSQL regression run passed 23/23 across six Phase 5–10 suites, and the local Playwright route/auth suite passed 7/7. Persisted authentication, vehicle CRUD, data isolation, and database-backed browser journeys remain unverified. Phase 11 is COMPLETE within its defined tested QA scope; see Section 3G for limits.
@@ -926,10 +1040,10 @@ ESLint uses the Next.js Core Web Vitals rules through ESLint 9 flat config. Late
 
 Production PostgreSQL runtime connectivity remains unverified. Before validating Prisma or applying a migration to any non-test database, provide its approved `DATABASE_URL` through the ignored local `.env` file or process environment and verify the intended target.
 
-### Partially Implemented CRUD
+### Database-Backed CRUD Coverage
 - Service-center/mechanic CRUD is implemented through Prisma and covered by 13 mocked management tests; a dedicated PostgreSQL CRUD integration result is not recorded, so database behavior for these screens is not claimed as live-verified.
-- User registration/login persistence is incomplete because `db.user` remains a placeholder.
-- Vehicle list/add/detail/edit routes exist as scaffolding, but `db.vehicle` is a placeholder and the add UI uses a fixed owner ID; persisted owner-scoped CRUD is not implemented.
+- User registration/login/logout use Prisma-backed methods and signed HTTP-only sessions; the focused guarded PostgreSQL auth integration passed 1/1.
+- Vehicle list/create/detail/edit/delete use owner-scoped Prisma methods; the focused guarded PostgreSQL vehicle integration passed 1/1 and verified two-customer isolation and booking-history preservation.
 
 ### Database Trigger Coverage
 - Existing `updated_at` triggers handle timestamps.
@@ -939,7 +1053,7 @@ Production PostgreSQL runtime connectivity remains unverified. Before validating
 ### Authentication — Development vs Production
 - A development fallback `JWT_SECRET` is present in the example/runtime fallback; deployment must supply a strong environment secret. The fallback must not be used in production.
 - No password reset flow is implemented.
-- Session resolution depends on `db.user.findUnique`, which currently returns `null`; end-to-end persisted login is incomplete.
+- Session resolution reads persisted users through Prisma. Release Gate A verified the focused auth persistence path against the dedicated PostgreSQL test database; production/external session behavior remains unverified.
 
 ### UI Styling Inconsistency
 - Some pages use inline styles, some use CSS classes

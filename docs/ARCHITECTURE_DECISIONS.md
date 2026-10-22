@@ -10,7 +10,7 @@
 
 ## 3. Authentication & Authorization (JWT + RBAC)
 - **Decision**: Use JWT (`jose`), Node.js crypto PBKDF2-SHA512 password hashing, HTTP-only cookies, and role checks for the roles `CUSTOMER`, `SERVICE_PROVIDER`, `FLEET_MANAGER`, and `ADMIN`.
-- **Rationale / current limitation**: Implemented feature Server Actions/services derive actors from signed sessions and enforce roles where applicable. The legacy `db.user` adapter is still a placeholder, so persisted registration/login is incomplete; do not infer complete authentication from the JWT tests or route Proxy.
+- **Rationale / current limitation**: Implemented feature Server Actions/services derive actors from signed sessions and enforce roles where applicable. Registration/login use Prisma/PostgreSQL and signed HTTP-only sessions, with focused dedicated-test-database verification; this does not establish every authentication journey or production database behavior.
 
 ## 4. Concurrency Control & Transactions
 - **Decision**: Use explicit PostgreSQL transactions with row-level locking (`SELECT ... FOR UPDATE`) for high-contention operations such as mechanic assignment and inventory deduction.

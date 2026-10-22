@@ -13,17 +13,17 @@ export default function Home() {
           Vehicle Service & Maintenance
         </h1>
         <p className="subtitle">
-          A production-quality, SQL-first database-driven platform for vehicle service booking, fleet management, mechanic assignment, and automated lifecycle tracking.
+          A SQL-first project prototype for exploring a single service center&apos;s booking and service workflow.
         </p>
 
         <div className="cards-grid">
           <div className="card">
             <h3>Customers & Fleet</h3>
-            <p>Manage multiple vehicles, book appointments, and track complete service history.</p>
+            <p>Explore the planned customer vehicle and booking workflows. Persisted sign-in and vehicle management are still in progress.</p>
           </div>
           <div className="card">
             <h3>Service Providers</h3>
-            <p>Assign mechanics with concurrency controls, update service status, and manage parts inventory.</p>
+            <p>Review the implemented booking, mechanic assignment, service, and inventory workflows.</p>
           </div>
           <div className="card">
             <h3>Advanced DBMS</h3>
@@ -34,7 +34,7 @@ export default function Home() {
         <div>
           <div className="status-footer">
             <span className="dot"></span>
-            Phase 1: Foundation & Infrastructure Initialized Successfully
+            Development project · not production-ready
           </div>
         </div>
       </div>

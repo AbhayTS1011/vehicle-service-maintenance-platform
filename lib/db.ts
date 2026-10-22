@@ -1,6 +1,5 @@
 // =====================================================================
-// Prisma persistence for booking, service-center, and mechanic workflows;
-// legacy user and vehicle adapters remain placeholders pending their migration.
+// Prisma persistence for the application's SQL-first PostgreSQL workflows.
 // =====================================================================
 
 import { BookingStatus, PrismaClient, type Prisma } from '@prisma/client'
@@ -129,8 +128,8 @@ async function availableSlotsWithTransaction(
 }
 
 export const db = {
-  // Booking creation uses the SQL-first PostgreSQL database through Prisma.
-  // The other legacy methods below remain placeholders until their phases are implemented.
+  // Implemented application workflows use the SQL-first PostgreSQL database through Prisma.
+  // Vehicle methods below remain legacy placeholders pending owner-scoped CRUD work.
   bookingCatalog: {
     async vehiclesForCustomer(customerId: number) {
       return prisma.vehicle.findMany({
@@ -219,32 +218,84 @@ export const db = {
     },
   },
   user: {
-    async findUnique({ where }: { where: { id?: number; email?: string } }) {
-      // In a Prisma implementation, this would query PostgreSQL
-      // For now, return null to indicate need for real database
-      return null
+    async findUnique({ where }: { where: Prisma.UserWhereUniqueInput }) {
+      return prisma.user.findUnique({ where })
     },
-    async create({ data }: { data: any }) {
-      // Placeholder - will be replaced by Prisma client
-      return { id: 1, ...data, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    async create({ data }: { data: Prisma.UserCreateInput }) {
+      return prisma.user.create({ data })
+    },
+    async updatePasswordHashIfUnchanged(input: { userId: number; expectedHash: string; nextHash: string }) {
+      const result = await prisma.user.updateMany({
+        where: { id: input.userId, passwordHash: input.expectedHash },
+        data: { passwordHash: input.nextHash },
+      })
+      return result.count === 1
+    },
+  },
+  auth: {
+    async consumeLoginRateLimit(accountKey: string, ipKey: string | null) {
+      return prisma.$transaction(async (transaction) => {
+        const account = await transaction.$queryRaw<Array<{ allowed: boolean }>>`
+          SELECT public.consume_login_rate_limit('account', ${accountKey}, 5) AS allowed
+        `
+        // Always consume both independent buckets, even when one has already crossed its limit.
+        const ip = ipKey
+          ? await transaction.$queryRaw<Array<{ allowed: boolean }>>`
+              SELECT public.consume_login_rate_limit('ip', ${ipKey}, 30) AS allowed
+            `
+          : [{ allowed: true }]
+        return account[0]?.allowed === true && ip[0]?.allowed === true
+      })
+    },
+    async clearAccountLoginRateLimit(accountKey: string) {
+      await prisma.$executeRaw`
+        DELETE FROM public.login_rate_limit_buckets
+        WHERE bucket_kind = 'account' AND bucket_hash = ${accountKey}
+      `
     },
   },
   vehicle: {
-    async findUnique({ where }: { where: { id: number } }) {
-      // Placeholder - will be replaced by Prisma client
-      return null
+    async findManyForOwner(ownerId: number) {
+      return prisma.vehicle.findMany({
+        where: { ownerId },
+        select: { id: true, ownerId: true, make: true, model: true, year: true, licensePlate: true, vin: true, mileage: true, createdAt: true, updatedAt: true },
+        orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
+      })
     },
-    async create({ data }: { data: any }) {
-      // Placeholder - will be replaced by Prisma client
-      return { id: 1, ...data, ownerId: Number(data.ownerId), createdAt: new Date().toISOString() }
+    async findForOwner(id: number, ownerId: number) {
+      return prisma.vehicle.findFirst({
+        where: { id, ownerId },
+        select: { id: true, ownerId: true, make: true, model: true, year: true, licensePlate: true, vin: true, mileage: true, createdAt: true, updatedAt: true },
+      })
     },
-    async updateVehicle({ where, data }: { where: { id: number }; data: any }) {
-      // Placeholder
-      return { id: where.id, ...data, updatedAt: new Date().toISOString() }
+    async createForOwner(ownerId: number, data: { make: string; model: string; year: number; licensePlate: string; vin: string | null; mileage: number }) {
+      return prisma.vehicle.create({
+        data: { ...data, owner: { connect: { id: ownerId } } },
+        select: { id: true, ownerId: true, make: true, model: true, year: true, licensePlate: true, vin: true, mileage: true, createdAt: true, updatedAt: true },
+      })
     },
-    async deleteVehicle({ where }: { where: { id: number } }) {
-      // Placeholder
-      return { id: where.id, deleted: true }
+    async updateForOwner(id: number, ownerId: number, data: { make: string; model: string; year: number; licensePlate: string; vin: string | null; mileage: number }) {
+      return prisma.$transaction(async (transaction) => {
+        const updated = await transaction.vehicle.updateMany({ where: { id, ownerId }, data })
+        if (!updated.count) return null
+        return transaction.vehicle.findFirst({
+          where: { id, ownerId },
+          select: { id: true, ownerId: true, make: true, model: true, year: true, licensePlate: true, vin: true, mileage: true, createdAt: true, updatedAt: true },
+        })
+      })
+    },
+    async deleteForOwner(id: number, ownerId: number): Promise<'deleted' | 'has_bookings' | 'not_found'> {
+      return prisma.$transaction(async (transaction) => {
+        const locked = await transaction.$queryRaw<Array<{ id: number }>>`
+          SELECT id FROM vehicles WHERE id = ${id} AND owner_id = ${ownerId} FOR UPDATE
+        `
+        if (!locked.length) return 'not_found'
+        // The SQL FK cascades booking rows. Preserve service history by refusing deletion once booked.
+        const bookingCount = await transaction.booking.count({ where: { vehicleId: id } })
+        if (bookingCount > 0) return 'has_bookings'
+        const deleted = await transaction.vehicle.deleteMany({ where: { id, ownerId } })
+        return deleted.count ? 'deleted' : 'not_found'
+      })
     },
   },
   serviceCenter: {
@@ -875,9 +926,8 @@ export const db = {
     },
   },
   auditLog: {
-    async create({ data }: { data: any }) {
-      // Placeholder
-      return { id: 1, ...data, loggedAt: new Date().toISOString() }
+    async create({ data }: { data: Prisma.AuditLogCreateInput }) {
+      return prisma.auditLog.create({ data })
     },
   },
   mechanic: {

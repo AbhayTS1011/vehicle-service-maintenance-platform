@@ -1,27 +1,8 @@
 -- =====================================================================
--- Vehicle Service & Maintenance Platform - Database Schema (SQL-First)
+-- Vehicle Service & Maintenance Platform - Create-only database schema (SQL-First)
 -- Normalized to 3NF with strict referential integrity and constraints.
+-- Apply through database/baseline.sql to a verified empty database.
 -- =====================================================================
-
--- Drop existing tables if re-running in development (in reverse order of dependencies)
-DROP TABLE IF EXISTS audit_logs CASCADE;
-DROP TABLE IF EXISTS notifications CASCADE;
-DROP TABLE IF EXISTS reviews CASCADE;
-DROP TABLE IF EXISTS service_parts CASCADE;
-DROP TABLE IF EXISTS invoices CASCADE;
-DROP TABLE IF EXISTS services CASCADE;
-DROP TABLE IF EXISTS bookings CASCADE;
-DROP TABLE IF EXISTS parts CASCADE;
-DROP TABLE IF EXISTS service_types CASCADE;
-DROP TABLE IF EXISTS mechanics CASCADE;
-DROP TABLE IF EXISTS service_center CASCADE;
-DROP TABLE IF EXISTS vehicles CASCADE;
-DROP TABLE IF EXISTS users CASCADE;
-
--- Drop custom types if they exist
-DROP TYPE IF EXISTS user_role CASCADE;
-DROP TYPE IF EXISTS booking_status CASCADE;
-DROP TYPE IF EXISTS invoice_status CASCADE;
 
 -- =====================================================================
 -- ENUMS

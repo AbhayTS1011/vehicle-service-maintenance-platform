@@ -17,6 +17,6 @@ export async function verifyVehicleOwnership(userId: number, vehicleId: number, 
   if (userRole === 'ADMIN' || userRole === 'SERVICE_PROVIDER') {
     return true
   }
-  if (!Number.isSafeInteger(userId) || !Number.isSafeInteger(vehicleId)) return false
+  if (!Number.isSafeInteger(userId) || userId <= 0 || !Number.isSafeInteger(vehicleId) || vehicleId <= 0) return false
   return db.bookingCatalog.ownsVehicle(userId, vehicleId)
 }

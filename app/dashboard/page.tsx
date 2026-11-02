@@ -3,6 +3,7 @@
 // =====================================================================
 
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
 import { UserRole } from '@prisma/client'
 import { logoutUser } from '@/lib/auth/actions'
 import { getSessionActor } from '@/lib/admin/session'
@@ -11,6 +12,23 @@ export default async function DashboardPage() {
   const actor = await getSessionActor()
   // Middleware handles route protection - no need for client-side auth check
   // The middleware redirects unauthenticated users to /login
+
+    // Route users to the correct dashboard based on their role.
+  if (actor?.role === UserRole.ADMIN) {
+    redirect('/dashboard/admin')
+  }
+
+  if (actor?.role === UserRole.SERVICE_PROVIDER) {
+    redirect('/dashboard/provider/bookings')
+  }
+
+  if (actor?.role === UserRole.FLEET_MANAGER) {
+    redirect('/dashboard/customer/vehicles')
+  }
+
+  if (actor?.role === UserRole.CUSTOMER) {
+    redirect('/dashboard/customer/vehicles')
+  }
 
   async function handleLogout() {
     'use server'
@@ -36,7 +54,7 @@ export default async function DashboardPage() {
           <div className="card">
             <h3>Vehicle Management</h3>
             <p>Use the navigation below to manage your vehicles.</p>
-            <Link href="/dashboard/vehicles" style={{ display: 'inline-block', padding: '0.75rem 1.5rem', backgroundColor: '#2563eb', color: 'white', borderRadius: '0.5rem', fontWeight: '600', textDecoration: 'none' }}>
+            <Link href="/dashboard/customer/vehicles" style={{ display: 'inline-block', padding: '0.75rem 1.5rem', backgroundColor: '#2563eb', color: 'white', borderRadius: '0.5rem', fontWeight: '600', textDecoration: 'none' }}>
               My Vehicles
             </Link>
           </div>

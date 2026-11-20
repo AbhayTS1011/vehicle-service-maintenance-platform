@@ -1,83 +1,45 @@
-// =====================================================================
-// Vehicle List / Dashboard Page - Vehicle Service Platform
-// =====================================================================
-
 import Link from 'next/link'
+import { redirect } from 'next/navigation'
+import { UserRole } from '@prisma/client'
+import { db } from '@/lib/db'
+import { listCustomerVehicles } from '@/lib/vehicles/vehicle-service'
+import { getVehicleActor } from '@/lib/vehicles/server-session'
+import DeleteVehicleButton from './DeleteVehicleButton'
 
-export default function VehicleListPage() {
+export default async function VehicleListPage() {
+  const actor = await getVehicleActor()
+  if (!actor) redirect('/login')
+  if (actor.role !== UserRole.CUSTOMER && actor.role !== UserRole.FLEET_MANAGER) redirect('/dashboard')
+  const result = await listCustomerVehicles(actor, db.vehicle)
+
   return (
     <main className="main-hero" style={{ padding: '2rem' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
-        <div style={{ marginBottom: '2rem' }}>
-          <span className="badge">My Vehicles</span>
-          <h1 style={{ fontSize: '2rem', marginBottom: '1rem' }}>My Vehicles</h1>
-          <p style={{ color: '#94a3b8' }}>
-            Manage your vehicle(s) and track service history.
-          </p>
-        </div>
-
-        <div style={{
-          backgroundColor: '#0f172a',
-          border: '1px solid #334155',
-          borderRadius: '0.75rem',
-          padding: '2rem',
-          textAlign: 'center',
-          color: '#94a3b8'
-        }}>
-          <h3 style={{ fontSize: '1.25rem', marginBottom: '0.5rem' }}>Vehicle Management</h3>
-          <p>Use the navigation below to add, view, edit, or delete your vehicles.</p>
-          <div style={{ marginTop: '1rem' }}>
-            <Link href="/dashboard/vehicles/new" style={{ color: '#60a5fa', textDecoration: 'underline', fontWeight: '600' }}>
-              Add Vehicle
-            </Link>
+      <section style={{ maxWidth: 1100, margin: '0 auto' }}>
+        <span className="badge">My Vehicles</span>
+        <h1 style={{ fontSize: '2rem', margin: '1rem 0' }}>My vehicles</h1>
+        <p style={{ color: '#cbd5e1', marginBottom: '1.5rem' }}>Manage vehicles linked to your account.</p>
+        <Link href="/dashboard/customer/vehicles/new" style={{ display: 'inline-block', marginBottom: '1.5rem', color: '#93c5fd' }}>Add vehicle</Link>
+        {!result.success ? <p role="alert">{result.error}</p> : result.value.length === 0 ? (
+          <p>You have no vehicles yet. Add a vehicle to request a service.</p>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table aria-label="Your vehicles" style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
+              <thead><tr>{['License plate', 'Vehicle', 'Year', 'Mileage', 'Actions'].map((item) => <th key={item} scope="col" style={{ textAlign: 'left', padding: '0.75rem', borderBottom: '1px solid #475569' }}>{item}</th>)}</tr></thead>
+              <tbody>{result.value.map((vehicle) => <tr key={vehicle.id}>
+                <td style={{ padding: '0.75rem' }}>{vehicle.licensePlate}</td>
+                <td style={{ padding: '0.75rem' }}>{vehicle.make} {vehicle.model}</td>
+                <td style={{ padding: '0.75rem' }}>{vehicle.year}</td>
+                <td style={{ padding: '0.75rem' }}>{vehicle.mileage ?? 0}</td>
+                <td style={{ padding: '0.75rem', display: 'flex', gap: '0.75rem' }}>
+                  <Link href={`/dashboard/customer/vehicles/${vehicle.id}`}>View</Link>
+                  <Link href={`/dashboard/customer/vehicles/${vehicle.id}/edit`}>Edit</Link>
+                  <DeleteVehicleButton id={vehicle.id} />
+                </td>
+              </tr>)}</tbody>
+            </table>
           </div>
-        </div>
-
-        <div style={{
-          backgroundColor: '#0f172a',
-          border: '1px solid #334155',
-          borderRadius: '0.75rem',
-          overflow: 'unset'
-        }}>
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            padding: '1rem',
-            backgroundColor: '#1e293b',
-            borderBottom: '1px solid #334155'
-          }}>
-            <span style={{ fontWeight: '600', color: 'white' }}>Registration</span>
-            <span style={{ fontWeight: '600', color: 'white' }}>Make / Model</span>
-            <span style={{ fontWeight: '600', color: 'white' }}>Year</span>
-            <span style={{ fontWeight: '600', color: 'white' }}>Mileage</span>
-            <span style={{ fontWeight: '600', color: 'white' }}>Actions</span>
-          </div>
-
-          <div style={{ padding: '1rem' }}>
-            <p style={{ color: '#64748b', fontSize: '0.875rem' }}>
-              Please log in to view your vehicles.
-            </p>
-            <Link href="/login" style={{ color: '#60a5fa', textDecoration: 'underline', fontWeight: '500' }}>
-              Login
-            </Link>
-          </div>
-        </div>
-
-        <div style={{ marginTop: '2rem' }}>
-          <Link href="/login" style={{
-            display: 'inline-block',
-            padding: '0.75rem 1.5rem',
-            backgroundColor: '#2563eb',
-            color: 'white',
-            borderRadius: '0.5rem',
-            fontWeight: '600',
-            textDecoration: 'none'
-          }}>
-            Login to Manage Vehicles
-          </Link>
-        </div>
-      </div>
+        )}
+      </section>
     </main>
   )
 }

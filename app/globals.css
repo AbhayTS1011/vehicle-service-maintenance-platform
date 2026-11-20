@@ -3,6 +3,7 @@
 :root {
   --foreground-rgb: 15, 23, 42;
   --background-rgb: 248, 250, 252;
+  --focus-ring: #93c5fd;
 }
 
 * {
@@ -16,6 +17,23 @@ body {
   background: rgb(var(--background-rgb));
   font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
   min-height: 100vh;
+  min-width: 320px;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
 }
 
 .main-hero {
@@ -31,6 +49,7 @@ body {
 }
 
 .hero-container {
+  width: min(100%, 56rem);
   max-width: 56rem;
   margin: 0 auto;
 }
@@ -63,9 +82,8 @@ h1 {
 }
 
 .cards-grid {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
   gap: 1.5rem;
   margin-bottom: 2.5rem;
 }
@@ -75,7 +93,8 @@ h1 {
   border: 1px solid #334155;
   border-radius: 0.75rem;
   padding: 1.5rem;
-  max-width: 20rem;
+  width: 100%;
+  max-width: 24rem;
   text-align: left;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
 }
@@ -159,4 +178,54 @@ h1 {
 
 .booking-error {
   color: #fca5a5;
+}
+
+@media (max-width: 40rem) {
+  .main-hero {
+    min-height: 100svh;
+    padding: 1.25rem;
+  }
+
+  .hero-container {
+    width: 100%;
+  }
+
+  h1 {
+    font-size: clamp(2rem, 10vw, 2.75rem);
+    overflow-wrap: anywhere;
+  }
+
+  .cards-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1rem;
+  }
+
+  .card {
+    max-width: none;
+    padding: 1.25rem;
+  }
+
+  .status-footer {
+    max-width: 100%;
+    padding: 0.75rem 1rem;
+    text-align: left;
+  }
+
+  .booking-form input,
+  .booking-form select,
+  .booking-form textarea,
+  .booking-form button {
+    min-height: 2.75rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }

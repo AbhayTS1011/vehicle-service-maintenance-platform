@@ -30,6 +30,40 @@ test('login page renders the real sign-in form and registration navigation', asy
   await expect(page.getByRole('link', { name: 'Register here' })).toHaveAttribute('href', '/register')
 })
 
+test('home page fits narrow mobile and tablet viewports without horizontal overflow', async ({ page }) => {
+  await page.goto('/')
+
+  for (const width of [360, 390, 768]) {
+    await page.setViewportSize({ width, height: 900 })
+    await expect(page.getByRole('heading', { name: 'Vehicle Service & Maintenance' })).toBeVisible()
+
+    const layout = await page.evaluate(() => ({
+      viewport: document.documentElement.clientWidth,
+      document: document.documentElement.scrollWidth,
+      cards: Array.from(document.querySelectorAll('.card')).map((card) => {
+        const bounds = card.getBoundingClientRect()
+        return { left: bounds.left, right: bounds.right }
+      }),
+    }))
+
+    expect(layout.document, `horizontal overflow at ${width}px`).toBeLessThanOrEqual(layout.viewport)
+    expect(layout.cards.length).toBe(3)
+    for (const card of layout.cards) {
+      expect(card.left, `card starts outside viewport at ${width}px`).toBeGreaterThanOrEqual(0)
+      expect(card.right, `card ends outside viewport at ${width}px`).toBeLessThanOrEqual(layout.viewport)
+    }
+  }
+})
+
+test('login controls expose a visible keyboard focus indicator', async ({ page }) => {
+  await page.goto('/login')
+  await page.keyboard.press('Tab')
+
+  const focusedControl = page.locator(':focus')
+  await expect(focusedControl).toHaveAttribute('type', 'email')
+  await expect.poll(() => focusedControl.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe('solid')
+})
+
 test('unauthenticated dashboard navigation redirects to login', async ({ page }) => {
   await page.goto('/dashboard/customer/bookings')
 
